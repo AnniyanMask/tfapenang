@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #1E2621;
+    background-color: #FAFAF7;
+    margin: 0;
+  }
+
+  h1, h2, h3, h4, .font-temple {
+    font-family: 'Fraunces', 'Cinzel', serif;
+  }
+
+  /* Custom scrollbar matching Contemporary Ashram organic tones */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #FAFAF7;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #E0E5DF;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #B3BFB1;
+  }
+}

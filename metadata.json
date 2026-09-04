@@ -1,0 +1,6 @@
+{
+  "name": "Deity & Sunday Prayer Booking System",
+  "description": "A clean, peaceful, mobile-first temple community portal for weekly deity reservations and Sunday prayer hosting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
