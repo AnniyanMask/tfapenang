@@ -8,6 +8,7 @@ import { DeityBookingPage } from './components/DeityBookingPage';
 import { PrayerHostingPage } from './components/PrayerHostingPage';
 import { CalendarPage } from './components/CalendarPage';
 import { MyBookingsPage } from './components/MyBookingsPage';
+import { NoticeBoardPage } from './components/NoticeBoardPage';
 import { AdminPortal } from './components/AdminPortal';
 import { ProfilePage } from './components/ProfilePage';
 import { BrandLogo } from './components/BrandLogo';
@@ -26,15 +27,30 @@ export default function App() {
   // Subscribe to storage changes
   useEffect(() => {
     const unsubscribe = storage.subscribe(() => {
-      setCurrentUser(storage.getCurrentUser());
+      const user = storage.getCurrentUser();
+      setCurrentUser(user);
+      if (user && user.role !== 'admin' && activeTab === 'admin') {
+        setActiveTab('dashboard');
+      }
       setRefreshTrigger(prev => prev + 1);
     });
     return unsubscribe;
-  }, []);
+  }, [activeTab]);
+
+  // Strict role guard: non-admin devotees cannot access administration tab
+  useEffect(() => {
+    if (activeTab === 'admin' && currentUser?.role !== 'admin') {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, currentUser?.role]);
 
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
-    setCurrentUser(storage.getCurrentUser());
+    const user = storage.getCurrentUser();
+    setCurrentUser(user);
+    if (user && user.role !== 'admin' && activeTab === 'admin') {
+      setActiveTab('dashboard');
+    }
   };
 
   const handleLogout = () => {
@@ -60,13 +76,6 @@ export default function App() {
   // Count pending users for admin badge
   const pendingUsersCount = storage.getUsers().filter(u => u.status === 'pending').length;
 
-  const quickSwitchUser = (phone: string) => {
-    const res = storage.loginWithPhone(phone);
-    if (res.success && res.user) {
-      setCurrentUser(res.user);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#FAFAF7] text-[#1E2621] flex flex-col md:flex-row antialiased selection:bg-[#DCFCE7] selection:text-[#1E5E3A]">
       {/* Navigation (Sidebar on Desktop, Top & Bottom Nav on Mobile) */}
@@ -87,59 +96,30 @@ export default function App() {
               <BrandLogo branding={storage.getTempleBranding()} imgClassName="w-full h-full object-contain" emojiClassName="text-sm" />
             </div>
             <span className="text-xs font-bold text-[#1E2621] uppercase tracking-wider font-temple">
-              {storage.getTempleBranding().templeName || 'Temple Of Fine Arts'} • {storage.getTempleBranding().tagline || 'Deity & Sunday Prayer Seva'}
+              {storage.getTempleBranding().templeName || 'Temple Of Fine Arts Penang'} • {storage.getTempleBranding().tagline || 'Deity & Sunday Prayer Seva'}
             </span>
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* Quick Demo Switcher in desktop header */}
-            <div className="flex items-center space-x-1 bg-[#F4F7F4] border border-[#E0E5DF] rounded-xl px-2.5 py-1 text-xs">
-              <span className="text-[#1E5E3A] text-[11px] font-semibold mr-1">Switch Devotee:</span>
-              <button
-                onClick={() => quickSwitchUser('9876543211')}
-                className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
-                  currentUser.mobilePhone === '9876543211' ? 'bg-[#1E5E3A] text-white font-bold' : 'hover:bg-[#E0E5DF] text-[#1E2621]'
-                }`}
-              >
-                Ananth
-              </button>
-              <button
-                onClick={() => quickSwitchUser('9876543212')}
-                className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
-                  currentUser.mobilePhone === '9876543212' ? 'bg-[#1E5E3A] text-white font-bold' : 'hover:bg-[#E0E5DF] text-[#1E2621]'
-                }`}
-              >
-                Kumar
-              </button>
-              <button
-                onClick={() => quickSwitchUser('9876543213')}
-                className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
-                  currentUser.mobilePhone === '9876543213' ? 'bg-[#D97736] text-white font-bold' : 'hover:bg-[#E0E5DF] text-[#D97736]'
-                }`}
-                title="Priya (Pending Admin Validation)"
-              >
-                Priya (Pending)
-              </button>
-              <button
-                onClick={() => quickSwitchUser('9876543210')}
-                className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
-                  currentUser.role === 'admin' ? 'bg-[#164E30] text-white font-bold' : 'hover:bg-[#E0E5DF] text-[#164E30] font-bold'
-                }`}
-              >
-                Admin
-              </button>
+            {/* Active User Indicator */}
+            <div className="flex items-center space-x-2 bg-[#F4F7F4] border border-[#E0E5DF] rounded-xl px-3 py-1 text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span className="font-semibold text-[#1E2621]">{currentUser.fullName}</span>
+              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#1E5E3A]/10 text-[#1E5E3A] font-bold">
+                {currentUser.role}
+              </span>
             </div>
 
             {/* Reset data button */}
             <button
               onClick={() => {
-                if (window.confirm('Reset temple demo data back to clean defaults?')) {
+                if (window.confirm('Reset temple data back to clean defaults?')) {
                   storage.resetToDefault();
                   handleRefresh();
                 }
               }}
-              className="p-1.5 rounded-xl text-[#5D6B62] hover:text-[#1E2621] hover:bg-[#F4F7F4] transition-colors"
-              title="Reset initial bookings & dates"
+              className="p-1.5 rounded-xl text-[#5D6B62] hover:text-[#1E2621] hover:bg-[#F4F7F4] transition-colors cursor-pointer"
+              title="Reset to clean defaults"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
@@ -185,6 +165,13 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'notice-board' && (
+            <NoticeBoardPage
+              currentUser={currentUser}
+              onRefresh={handleRefresh}
+            />
+          )}
+
           {activeTab === 'my-bookings' && (
             <MyBookingsPage
               currentUser={currentUser}
@@ -203,7 +190,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'admin' && (
+          {activeTab === 'admin' && currentUser.role === 'admin' && (
             <AdminPortal
               currentUser={currentUser}
               onRefresh={handleRefresh}

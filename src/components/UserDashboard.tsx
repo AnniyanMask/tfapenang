@@ -1,6 +1,8 @@
 import React from 'react';
 import { ActiveTab, DeityBooking, PrayerHosting, User } from '../types';
+import { storage } from '../services/storage';
 import { formatShortDate, formatFullSunday } from '../utils/dateUtils';
+import { DevoteeAvatar } from './DevoteeAvatar';
 import { 
   Calendar, 
   Sparkles, 
@@ -12,7 +14,9 @@ import {
   HeartHandshake,
   Flame,
   ShieldCheck,
-  Info
+  Info,
+  Bell,
+  Pin
 } from 'lucide-react';
 
 interface UserDashboardProps {
@@ -36,6 +40,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   const activePrayerHostings = myPrayerHostings.filter(h => h.status === 'confirmed');
   const hasAnyBookings = activeDeityBookings.length > 0 || activePrayerHostings.length > 0;
   const isPendingValidation = currentUser.status === 'pending';
+  const announcements = storage.getAnnouncements();
+  const highlightedNotices = announcements.slice(0, 2);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -48,7 +54,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               Account Registered — Awaiting Admin Validation
             </h3>
             <p className="text-xs text-[#8F4F19]/90 mt-1 leading-relaxed">
-              Welcome, {currentUser.fullName}! Your mobile number (<span className="font-semibold">{currentUser.mobilePhone}</span>) has been submitted for validation against the Temple Supabase database. You can explore available dates; once approved by the Temple Committee, your reservations will be finalized.
+              Welcome, {currentUser.fullName}! Your mobile number (<span className="font-semibold">{currentUser.mobilePhone}</span>) has been submitted for validation by the Temple Committee. You can explore available dates; once approved, your reservations will be finalized.
             </p>
           </div>
         </div>
@@ -57,31 +63,117 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
       {/* Top Welcome Section */}
       <div className="bg-[#1E5E3A] rounded-3xl p-6 sm:p-8 text-white shadow-xs relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 text-emerald-100 text-xs font-semibold tracking-wider uppercase mb-1">
-            <Sparkles className="w-4 h-4 text-emerald-200" />
-            <span>Shiva Family Portal</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-temple tracking-tight">
-            Welcome, {currentUser.fullName}
-          </h1>
-          <p className="text-emerald-100/90 text-xs sm:text-sm mt-1 max-w-xl leading-relaxed">
-            Reserve a sacred deity to grace your home for an auspicious Sunday-to-Sunday week, or volunteer to host Sunday community prayers.
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs font-medium text-white">
-              📱 {currentUser.mobilePhone}
-            </span>
-            {currentUser.status !== 'approved' && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/30 backdrop-blur-xs font-medium text-amber-200">
-                <span className="w-2 h-2 rounded-full bg-amber-300"></span>
-                Pending Admin Verification
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start space-x-4">
+            <button
+              onClick={() => onNavigate('profile')}
+              className="shrink-0 relative group focus:outline-none cursor-pointer"
+              title="Update profile picture"
+            >
+              <DevoteeAvatar
+                avatarUrl={currentUser.avatarUrl}
+                name={currentUser.fullName}
+                size="lg"
+                showRing
+                ringColor="ring-white/50"
+              />
+              <span className="absolute -bottom-1 -right-1 bg-white text-[#1E5E3A] text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-xs opacity-90 group-hover:opacity-100 transition-opacity">
+                Edit
               </span>
-            )}
+            </button>
+            <div>
+              <div className="flex items-center gap-2 text-emerald-100 text-xs font-semibold tracking-wider uppercase mb-1">
+                <Sparkles className="w-4 h-4 text-emerald-200" />
+                <span>Shiva Family Portal</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold font-temple tracking-tight">
+                Welcome, {currentUser.fullName}
+              </h1>
+              <p className="text-emerald-100/90 text-xs sm:text-sm mt-1 max-w-xl leading-relaxed">
+                Reserve a sacred deity to grace your home for an auspicious Sunday-to-Sunday week, or volunteer to host Sunday community prayers.
+              </p>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs font-medium text-white">
+                  📱 {currentUser.mobilePhone}
+                </span>
+                <button
+                  onClick={() => onNavigate('profile')}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-xs font-semibold text-white transition-colors cursor-pointer"
+                >
+                  <span>📷 Update Profile Picture</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Temple Notice Board & Circulars Highlight */}
+      {highlightedNotices.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#E0E5DF] p-4 sm:p-5 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-lg bg-[#EBF3ED] text-[#1E5E3A] flex items-center justify-center">
+                <Bell className="w-4 h-4" />
+              </div>
+              <h2 className="text-sm font-bold text-[#1E2621] uppercase tracking-wider font-temple">
+                TFA Penang Notice Board &amp; Announcements
+              </h2>
+            </div>
+            <button
+              onClick={() => onNavigate('notice-board')}
+              className="text-xs font-bold text-[#1E5E3A] hover:text-[#164E30] flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <span>View All ({announcements.length})</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {highlightedNotices.map((ann) => (
+              <div
+                key={ann.id}
+                onClick={() => onNavigate('notice-board')}
+                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                  ann.isPinned
+                    ? 'bg-[#FEFAF4] border-[#FDE7C7] hover:border-[#FBD197]'
+                    : 'bg-[#FAFAF7] border-[#E0E5DF] hover:border-[#CDE0D4]'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                    {ann.isPinned && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-[#FEF3EB] text-[#D97736] border border-[#FEE2C7]">
+                        <Pin className="w-2.5 h-2.5 fill-[#D97736]" />
+                        PINNED
+                      </span>
+                    )}
+                    {ann.badgeText && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#EBF3ED] text-[#1E5E3A] border border-[#CDE0D4]">
+                        {ann.badgeText}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-[#5D6B62] ml-auto">
+                      {ann.publishedDate}
+                    </span>
+                  </div>
+                  <h3 className="text-xs font-bold text-[#1E2621] font-temple line-clamp-1">
+                    {ann.title}
+                  </h3>
+                  <p className="text-[11px] text-[#5D6B62] mt-1 line-clamp-2 leading-relaxed">
+                    {ann.content}
+                  </p>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-black/5 flex items-center justify-between text-[10px]">
+                  <span className="text-[#8A968D]">By {ann.authorName}</span>
+                  <span className="text-[#1E5E3A] font-bold">Read details →</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Two Large Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -282,6 +374,25 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                         10:30 AM Pooja &amp; 12:30 PM Prasadam
                       </span>
                     </div>
+                    {(hosting.providesFood || hosting.providesDrinks) && (
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[#5D6B62]">Offerings:</span>
+                        <div className="flex items-center gap-1.5">
+                          {hosting.providesFood && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EBF3ED] text-[#1E5E3A] border border-[#D2DFD5]" title="Food Provided">
+                              <span>🍃</span>
+                              <span>Food</span>
+                            </span>
+                          )}
+                          {hosting.providesDrinks && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FEF3EB] text-[#B85E22] border border-[#FAD7C0]" title="Coffee & Drinks Provided">
+                              <span>☕</span>
+                              <span>Drinks</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -311,7 +422,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               • Deities are collected each Sunday following the main sanctum prayer (approx. 12:30 PM).
             </p>
             <p>
-              • Please return the deity on the concluding Sunday before 11:00 AM so the sanctum can prepare for the incoming family.
+              • Please return the deity on the concluding Sunday before 5:00 AM so the sanctum can prepare for the incoming family.
             </p>
             <p>
               • Maintain a serene and satvic environment in your home altar throughout the holy week.

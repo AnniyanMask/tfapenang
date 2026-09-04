@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ActiveTab, DeityBooking, PrayerHosting, User } from '../types';
 import { storage } from '../services/storage';
 import { formatFullSunday, formatShortDate } from '../utils/dateUtils';
+import { DevoteeAvatar } from './DevoteeAvatar';
 import { 
   BookOpen, 
   Flame, 
@@ -248,6 +249,25 @@ export const MyBookingsPage: React.FC<MyBookingsPageProps> = ({
                         <span className="text-[#5D6B62]">Seva Timings:</span>
                         <span className="font-semibold text-[#1E2621]">10:30 AM to 1:00 PM</span>
                       </div>
+                      {(h.providesFood || h.providesDrinks) && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#5D6B62]">Offerings:</span>
+                          <div className="flex items-center gap-1.5">
+                            {h.providesFood && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EBF3ED] text-[#1E5E3A] border border-[#D2DFD5]" title="Food Provided">
+                                <span>🍃</span>
+                                <span>Food</span>
+                              </span>
+                            )}
+                            {h.providesDrinks && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FEF3EB] text-[#B85E22] border border-[#FAD7C0]" title="Coffee & Drinks Provided">
+                                <span>☕</span>
+                                <span>Drinks</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       {h.notes && (
                         <div className="flex justify-between">
                           <span className="text-[#5D6B62]">Prasadam Seva:</span>
@@ -315,6 +335,18 @@ export const MyBookingsPage: React.FC<MyBookingsPageProps> = ({
                 <span className="text-[#5D6B62]">Status:</span>
                 <span className="font-bold text-[#1E5E3A] uppercase">🟢 Confirmed</span>
               </div>
+              <div className="flex items-center justify-between pt-2 border-t border-[#E0E5DF]">
+                <span className="text-[#5D6B62]">Devotee:</span>
+                <div className="flex items-center space-x-2">
+                  <DevoteeAvatar
+                    avatarUrl={viewBooking.userAvatarUrl || storage.getUserById(viewBooking.userId)?.avatarUrl}
+                    name={viewBooking.userName}
+                    size="xs"
+                    showRing
+                  />
+                  <span className="font-semibold text-[#1E2621]">{viewBooking.userName}</span>
+                </div>
+              </div>
               {viewBooking.notes && (
                 <div className="pt-2 border-t border-[#E0E5DF]">
                   <span className="text-[#5D6B62] block">Notes:</span>
@@ -359,13 +391,39 @@ export const MyBookingsPage: React.FC<MyBookingsPageProps> = ({
                 <span className="text-[#5D6B62]">Date:</span>
                 <span className="font-bold text-[#1E2621]">{formatFullSunday(viewHosting.date)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex items-center justify-between">
                 <span className="text-[#5D6B62]">Host:</span>
-                <span className="font-semibold text-[#1E2621]">{viewHosting.userName} ({viewHosting.userPhone})</span>
+                <div className="flex items-center space-x-2">
+                  <DevoteeAvatar
+                    avatarUrl={viewHosting.userAvatarUrl || (viewHosting.userId ? storage.getUserById(viewHosting.userId)?.avatarUrl : undefined)}
+                    name={viewHosting.userName}
+                    size="xs"
+                    showRing
+                  />
+                  <span className="font-semibold text-[#1E2621]">{viewHosting.userName} ({viewHosting.userPhone})</span>
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#5D6B62]">Status:</span>
                 <span className="font-bold text-[#1E5E3A] uppercase">🟢 Confirmed</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#5D6B62]">Host Offerings:</span>
+                <div className="flex items-center gap-1.5">
+                  {viewHosting.providesFood && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#EBF3ED] text-[#1E5E3A] border border-[#D2DFD5]">
+                      🍃 Food
+                    </span>
+                  )}
+                  {viewHosting.providesDrinks && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#FEF3EB] text-[#B85E22] border border-[#FAD7C0]">
+                      ☕ Drinks (Coffee)
+                    </span>
+                  )}
+                  {!viewHosting.providesFood && !viewHosting.providesDrinks && (
+                    <span className="text-xs text-[#5D6B62]">Prayer Seva</span>
+                  )}
+                </div>
               </div>
               {viewHosting.notes && (
                 <div className="pt-2 border-t border-[#E0E5DF]">

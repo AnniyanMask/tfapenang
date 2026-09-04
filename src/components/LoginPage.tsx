@@ -10,8 +10,8 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const branding = storage.getTempleBranding();
-  const [mobilePhone, setMobilePhone] = useState('9876543211'); // Default to Ananth for quick start
-  const [password, setPassword] = useState('temple123');
+  const [mobilePhone, setMobilePhone] = useState('0162216904'); // Official Admin account
+  const [password, setPassword] = useState('Anni1234$$');
   const [errorMessage, setErrorMessage] = useState('');
   const [showRegister, setShowRegister] = useState(false);
   const [forgotPasswordNotice, setForgotPasswordNotice] = useState(false);
@@ -20,7 +20,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [regFullName, setRegFullName] = useState('');
   const [regMobilePhone, setRegMobilePhone] = useState('');
   const [regAddress, setRegAddress] = useState('');
-  const [regPassword, setRegPassword] = useState('temple123');
+  const [regPassword, setRegPassword] = useState('Anni1234$$');
   const [regSuccess, setRegSuccess] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -32,11 +32,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       return;
     }
 
-    const result = storage.loginWithPhone(mobilePhone);
+    const result = storage.loginWithPhone(mobilePhone, password);
     if (result.success && result.user) {
       onLoginSuccess(result.user);
     } else {
-      setErrorMessage(result.error || 'Invalid Mobile Phone number or account not found.');
+      setErrorMessage(result.error || 'Invalid Mobile Phone number or password.');
     }
   };
 
@@ -56,6 +56,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     const result = storage.registerUser({
       fullName: regFullName,
       mobilePhone: regMobilePhone,
+      password: regPassword,
       address: regAddress
     });
 
@@ -69,11 +70,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const setQuickUser = (phone: string) => {
+  const setQuickUser = (phone: string, pwd: string = 'Anni1234$$') => {
     setMobilePhone(phone);
-    setPassword('temple123');
+    setPassword(pwd);
     setErrorMessage('');
-    const result = storage.loginWithPhone(phone);
+    const result = storage.loginWithPhone(phone, pwd);
     if (result.success && result.user) {
       onLoginSuccess(result.user);
     }
@@ -92,13 +93,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             <BrandLogo branding={branding} imgClassName="w-full h-full object-contain" emojiClassName="text-3xl" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#1E2621] font-temple tracking-tight">
-            {branding.templeName || 'Temple Of Fine Arts'}
+            {(!branding.templeName || branding.templeName === 'Temple Of Fine Arts') ? 'Temple Of Fine Arts Penang' : branding.templeName}
           </h1>
           <p className="text-xs sm:text-sm text-[#D97736] font-semibold tracking-wide uppercase mt-0.5">
             {branding.tagline || 'Deity & Sunday Prayer Booking System'}
           </p>
           <div className="mt-3 inline-block px-4 py-1.5 rounded-full bg-[#EBF3ED] border border-[#CDE0D4] text-xs text-[#1E5E3A] font-medium">
-            &quot;Sign in to manage your deity bookings and Sunday prayer hosting.&quot;
+            &quot;Sign in and get blessed by Swami Shantanand Saraswathi.&quot;
           </div>
         </div>
 
@@ -137,7 +138,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     required
                     value={mobilePhone}
                     onChange={(e) => setMobilePhone(e.target.value)}
-                    placeholder="e.g. 9876543211"
+                    placeholder="e.g. 0162216904"
                     className="w-full pl-10 pr-4 py-2.5 bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl text-[#1E2621] text-sm focus:outline-none focus:ring-2 focus:ring-[#1E5E3A] focus:bg-white transition-all"
                   />
                 </div>
@@ -179,7 +180,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
               {forgotPasswordNotice && (
                 <div className="p-3 bg-[#FEF9EE] rounded-xl border border-[#FEE2C7] text-xs text-[#8F4F19] flex justify-between items-center">
-                  <span>For security, contact the Temple Office with your registered Mobile Phone to reset credentials.</span>
+                  <span>Contact Ranya to reset your password.</span>
                   <button 
                     type="button"
                     onClick={() => setForgotPasswordNotice(false)} 
@@ -234,7 +235,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   Temple Member Verification Notice
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-[#5D6B62]">
-                  All new registrations must be validated by the Temple Administrator against the Supabase database before booking deities.
+                  All new registrations will be validated by Tfa Penang Admin.
                 </p>
               </div>
 
@@ -275,7 +276,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   required
                   value={regMobilePhone}
                   onChange={(e) => setRegMobilePhone(e.target.value)}
-                  placeholder="e.g. 9876543299"
+                  placeholder="e.g. 0123456789"
                   className="w-full px-3.5 py-2 bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl text-[#1E2621] text-sm focus:outline-none focus:ring-2 focus:ring-[#1E5E3A]"
                 />
               </div>
@@ -317,55 +318,31 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </form>
           )}
 
-          {/* Quick Demo Switcher (Helps examiner test both User and Admin easily) */}
+          {/* Quick Admin Sign-In */}
           <div className="mt-6 pt-4 border-t border-[#E0E5DF]">
             <p className="text-[11px] font-bold text-[#5D6B62] uppercase tracking-wider mb-2 text-center">
-              Quick 1-Click Sign-In For Demo
+              Administrator Access
             </p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setQuickUser('9876543211')}
-                className="p-2 rounded-xl bg-[#EBF3ED] hover:bg-[#DCFCE7] border border-[#CDE0D4] text-left transition-colors cursor-pointer"
-              >
-                <div className="font-bold text-[#1E5E3A] truncate">👤 Ananth</div>
-                <div className="text-[10px] text-[#5D6B62]">📱 9876543211</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setQuickUser('9876543210')}
-                className="p-2 rounded-xl bg-[#FEF3EB] hover:bg-[#FEE2C7] border border-[#FDCBAA] text-left transition-colors cursor-pointer"
-              >
-                <div className="font-bold text-[#D97736] truncate">⚙️ Temple Admin</div>
-                <div className="text-[10px] text-[#8F4F19]">📱 9876543210</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setQuickUser('9876543212')}
-                className="p-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F4F7F4] border border-[#E0E5DF] text-left transition-colors cursor-pointer"
-              >
-                <div className="font-bold text-[#1E2621] truncate">👤 Kumar Raman</div>
-                <div className="text-[10px] text-[#5D6B62]">📱 9876543212</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setQuickUser('9876543213')}
-                className="p-2 rounded-xl bg-[#FEF9EE] hover:bg-[#FEEFCF] border border-[#FCE7B0] text-left transition-colors cursor-pointer"
-              >
-                <div className="font-bold text-[#8F4F19] truncate">⏳ Priya (Pending)</div>
-                <div className="text-[10px] text-[#B85E22]">📱 9876543213</div>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setQuickUser('0162216904', 'Anni1234$$')}
+              className="w-full p-2.5 rounded-xl bg-[#FEF3EB] hover:bg-[#FEE2C7] border border-[#FDCBAA] flex items-center justify-between transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="font-bold text-[#D97736] text-xs">⚙️ Temple Administrator (Admin)</div>
+                <div className="text-[10px] text-[#8F4F19]">📱 0162216904 &bull; Password: Anni1234$$</div>
+              </div>
+              <span className="text-xs font-semibold text-[#D97736] bg-white/80 px-2 py-1 rounded-lg border border-[#FDCBAA]">
+                1-Click Sign In
+              </span>
+            </button>
           </div>
         </div>
 
         {/* Footer info */}
         <div className="text-center mt-6 text-xs text-[#5D6B62]">
           <p>Temple Of Fine Arts Penang • Shiva Family Portal</p>
-          <p className="text-[11px] mt-1 text-[#86968B]">Hari Om Tat Sat</p>
+          <p className="text-[11px] mt-1 text-[#86968B]">Launched on 4th Sept 2026(Krishna Janmashtami)</p>
         </div>
       </div>
     </div>

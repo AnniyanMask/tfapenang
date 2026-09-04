@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Deity, DeityBooking, PrayerHosting, SundaySlotInfo, User } from '../types';
-import { storage, SUPABASE_SQL_SCHEMA } from '../services/storage';
+import { storage } from '../services/storage';
 import { formatFullSunday, formatMonthYear, formatShortDate, getSundaysInMonth, getSundaysInYear } from '../utils/dateUtils';
 import { 
   ShieldCheck, 
@@ -8,36 +8,59 @@ import {
   HeartHandshake, 
   Calendar as CalendarIcon, 
   Users, 
-  Database, 
   Plus, 
   Edit3, 
   Eye, 
   Check, 
   X, 
   Filter, 
-  Copy, 
   CheckCircle2, 
   AlertTriangle,
-  FileCode,
-  Globe,
   Sparkles,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Shield,
+  ShieldAlert,
+  UserPlus,
+  Search,
+  Bell
 } from 'lucide-react';
 import { TempleBrandingManager } from './TempleBrandingManager';
 import { BrandLogo, DeityIconDisplay } from './BrandLogo';
+import { DevoteeAvatar } from './DevoteeAvatar';
+import { NoticeBoardPage } from './NoticeBoardPage';
 
 interface AdminPortalProps {
   currentUser: User;
   onRefresh: () => void;
 }
 
-type AdminSubSection = 'overview' | 'branding' | 'calendar' | 'deities' | 'bookings' | 'prayer-hosts' | 'users' | 'supabase';
+type AdminSubSection = 'overview' | 'branding' | 'announcements' | 'calendar' | 'deities' | 'bookings' | 'prayer-hosts' | 'users';
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({
   currentUser,
   onRefresh
 }) => {
+  // Strict Defense-in-depth permission check: Only admins can manage Administration portal
+  if (currentUser.role !== 'admin') {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16 px-6 bg-white rounded-3xl border border-[#E0E5DF] shadow-xs space-y-4 my-8">
+        <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto text-3xl font-bold shadow-xs">
+          🛡️
+        </div>
+        <h2 className="text-xl font-bold text-[#1E2621] font-temple">
+          Access Restricted to Administrators
+        </h2>
+        <p className="text-sm text-[#5D6B62] leading-relaxed">
+          Only verified Temple Administrators have permission to manage the Administration portal. Devotees do not have access to this portal.
+        </p>
+        <div className="p-3 bg-[#FAFAF7] rounded-xl border border-[#E0E5DF] text-xs text-[#5D6B62]">
+          Logged in as: <span className="font-bold text-[#1E2621]">{currentUser.fullName}</span> ({currentUser.mobilePhone}) • <span className="uppercase text-[10px] font-bold text-[#D97736]">Role: {currentUser.role}</span>
+        </div>
+      </div>
+    );
+  }
+
   const [activeSection, setActiveSection] = useState<AdminSubSection>('overview');
 
   // Year filter
@@ -63,6 +86,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [deityDesc, setDeityDesc] = useState('');
   const [deityIcon, setDeityIcon] = useState('🛕');
 
+  // User & Admin management states
+  const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
+  const [adminFullName, setAdminFullName] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminAddress, setAdminAddress] = useState('');
+  const [createAdminError, setCreateAdminError] = useState('');
+  const [createAdminSuccess, setCreateAdminSuccess] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'admin' | 'pending' | 'devotee'>('all');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+
   // Assign Booking Modal State
   const [assignBookingSlot, setAssignBookingSlot] = useState<{ date: string; deityId: string } | null>(null);
   const [assignUserId, setAssignUserId] = useState<string>('');
@@ -70,9 +104,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Assign Prayer Host Modal State
   const [assignHostDate, setAssignHostDate] = useState<string | null>(null);
   const [assignHostUserId, setAssignHostUserId] = useState<string>('');
+  const [assignHostProvidesFood, setAssignHostProvidesFood] = useState<boolean>(false);
+  const [assignHostProvidesDrinks, setAssignHostProvidesDrinks] = useState<boolean>(false);
+  const [assignHostNotes, setAssignHostNotes] = useState<string>('');
 
-  // SQL Copy feedback
-  const [copiedSQL, setCopiedSQL] = useState(false);
+  // Edit Prayer Host Modal State
+  const [editingPrayerHosting, setEditingPrayerHosting] = useState<PrayerHosting | null>(null);
+  const [editHostProvidesFood, setEditHostProvidesFood] = useState<boolean>(false);
+  const [editHostProvidesDrinks, setEditHostProvidesDrinks] = useState<boolean>(false);
+  const [editHostNotes, setEditHostNotes] = useState<string>('');
+  const [editHostUserId, setEditHostUserId] = useState<string>('');
 
   // Statistics calculation (Section 15: Exact match for prompt specifications)
   const totalSundaysInYear = getSundaysInYear(selectedYear).length;
@@ -84,8 +125,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const unassignedPrayerSundays = Math.max(0, totalSundaysInYear - confirmedPrayerHostings);
 
   const pendingUsers = users.filter(u => u.status === 'pending');
+  const adminUsers = users.filter(u => u.role === 'admin');
 
-  // Handlers for Users (Supabase Validation Requirement)
+  // Handlers for Users (Supabase Validation Requirement & Admin Creation)
   const handleApproveUser = (userId: string) => {
     storage.updateUserStatus(userId, 'approved');
     onRefresh();
@@ -96,10 +138,62 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     onRefresh();
   };
 
-  const handleToggleAdminRole = (user: User) => {
-    const newRole = user.role === 'admin' ? 'user' : 'admin';
-    storage.updateUserStatus(user.id, user.status, newRole);
+  const handleCreateAdmin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateAdminError('');
+    if (!adminFullName.trim()) {
+      setCreateAdminError('Please enter administrator full name.');
+      return;
+    }
+    if (!adminPhone.trim()) {
+      setCreateAdminError('Please enter administrator mobile phone number.');
+      return;
+    }
+    const res = storage.createAdminUser({
+      fullName: adminFullName.trim(),
+      mobilePhone: adminPhone.trim(),
+      email: adminEmail.trim(),
+      address: adminAddress.trim()
+    });
+
+    if (!res.success) {
+      setCreateAdminError(res.error || 'Failed to create administrator.');
+      return;
+    }
+
+    setCreateAdminSuccess(`Administrator account for ${adminFullName.trim()} created with full privileges!`);
+    setAdminFullName('');
+    setAdminPhone('');
+    setAdminEmail('');
+    setAdminAddress('');
+    setTimeout(() => {
+      setShowCreateAdminModal(false);
+      setCreateAdminSuccess('');
+    }, 1500);
     onRefresh();
+  };
+
+  const handlePromoteToAdmin = (user: User) => {
+    if (window.confirm(`Grant ${user.fullName} full administrator privileges? They will have equal access to manage the Administration portal, bookings, and other admins.`)) {
+      storage.updateUserStatus(user.id, 'approved', 'admin');
+      onRefresh();
+    }
+  };
+
+  const handleDemoteAdmin = (user: User) => {
+    if (user.id === currentUser.id) {
+      alert('You cannot demote your own account while logged in as administrator.');
+      return;
+    }
+    const currentAdminCount = users.filter(u => u.role === 'admin').length;
+    if (currentAdminCount <= 1) {
+      alert('Cannot demote this administrator. At least one administrator is required.');
+      return;
+    }
+    if (window.confirm(`Remove administrator privileges from ${user.fullName}? They will become a regular devotee without access to the Administration portal.`)) {
+      storage.updateUserStatus(user.id, user.status, 'user');
+      onRefresh();
+    }
   };
 
   // Deity handlers
@@ -185,18 +279,49 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     storage.bookPrayerHosting({
       date: assignHostDate,
       user: targetUser,
-      notes: 'Assigned by Temple Administration'
+      notes: assignHostNotes || 'Assigned by Temple Administration',
+      providesFood: assignHostProvidesFood,
+      providesDrinks: assignHostProvidesDrinks
     });
 
     setAssignHostDate(null);
     setAssignHostUserId('');
+    setAssignHostProvidesFood(false);
+    setAssignHostProvidesDrinks(false);
+    setAssignHostNotes('');
     onRefresh();
   };
 
-  const copySchemaToClipboard = () => {
-    navigator.clipboard.writeText(SUPABASE_SQL_SCHEMA);
-    setCopiedSQL(true);
-    setTimeout(() => setCopiedSQL(false), 2000);
+  // Open edit prayer host modal
+  const handleOpenEditPrayerHosting = (hosting: PrayerHosting) => {
+    setEditingPrayerHosting(hosting);
+    setEditHostProvidesFood(hosting.providesFood || false);
+    setEditHostProvidesDrinks(hosting.providesDrinks || false);
+    setEditHostNotes(hosting.notes || '');
+    setEditHostUserId(hosting.userId || '');
+  };
+
+  // Save prayer host changes handler
+  const handleSavePrayerHosting = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPrayerHosting) return;
+
+    const selectedUser = users.find(u => u.id === editHostUserId);
+
+    storage.updatePrayerHosting(editingPrayerHosting.date, {
+      providesFood: editHostProvidesFood,
+      providesDrinks: editHostProvidesDrinks,
+      notes: editHostNotes,
+      ...(selectedUser ? {
+        userId: selectedUser.id,
+        userName: selectedUser.fullName,
+        userPhone: selectedUser.mobilePhone,
+        userAvatarUrl: selectedUser.avatarUrl,
+      } : {})
+    });
+
+    setEditingPrayerHosting(null);
+    onRefresh();
   };
 
   return (
@@ -215,15 +340,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             Oversee weekly deity reservations, Sunday prayer volunteers, and member validations.
           </p>
         </div>
-
-        {/* Quick Database / Supabase Schema Badge */}
-        <button
-          onClick={() => setActiveSection('supabase')}
-          className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-[#151D18] hover:bg-[#0F1511] text-[#D97736] border border-[#D97736]/30 text-xs font-bold transition-colors cursor-pointer self-start sm:self-auto"
-        >
-          <Database className="w-4 h-4" />
-          <span>Supabase Schema &amp; SQL</span>
-        </button>
       </div>
 
       {/* Admin Navigation Pills */}
@@ -231,17 +347,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         {[
           { id: 'overview' as AdminSubSection, label: 'Dashboard Stats', icon: ShieldCheck },
           { id: 'branding' as AdminSubSection, label: 'Temple Logo & Brand', icon: Sparkles },
+          { id: 'announcements' as AdminSubSection, label: 'Notice Board', icon: Bell },
           { id: 'calendar' as AdminSubSection, label: 'Admin Calendar', icon: CalendarIcon },
           { id: 'deities' as AdminSubSection, label: 'Manage Deities', icon: Flame },
           { id: 'bookings' as AdminSubSection, label: 'Manage Bookings', icon: Eye },
           { id: 'prayer-hosts' as AdminSubSection, label: 'Prayer Hosts', icon: HeartHandshake },
           { 
             id: 'users' as AdminSubSection, 
-            label: `Devotee Validation (${pendingUsers.length} Pending)`, 
+            label: `Devotees & Admins (${adminUsers.length} Admins, ${pendingUsers.length} Pending)`, 
             icon: Users,
             badge: pendingUsers.length > 0 ? pendingUsers.length : undefined
-          },
-          { id: 'supabase' as AdminSubSection, label: 'Supabase & Netlify', icon: Globe }
+          }
         ].map(tab => {
           const isActive = activeSection === tab.id;
           return (
@@ -388,6 +504,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <TempleBrandingManager onUpdated={onRefresh} />
       )}
 
+      {/* TFA PENANG NOTICE BOARD & CIRCULARS */}
+      {activeSection === 'announcements' && (
+        <NoticeBoardPage currentUser={currentUser} onRefresh={onRefresh} />
+      )}
+
       {/* 16. ADMIN CALENDAR (Master Yearly/Monthly breakdown) */}
       {activeSection === 'calendar' && (
         <div className="space-y-4">
@@ -453,18 +574,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <div className="flex items-center space-x-2">
                       <span className="text-xs font-semibold text-[#5D6B62]">Prayer Host:</span>
                       {hostName ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCFCE7] border border-[#BBF7D0] text-[#1E5E3A] text-xs font-bold">
-                          <span>🙏</span>
-                          <span>{hostName}</span>
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EAEFEA] border border-[#D2DFD5] text-[#5D6B62] text-xs font-bold">
+                            <span>🙏</span>
+                            <span>{hostName}</span>
+                            {hosting?.providesFood && <span title="Food Provided">🍃</span>}
+                            {hosting?.providesDrinks && <span title="Drinks Provided">☕</span>}
+                          </span>
+                          <button
+                            onClick={() => handleOpenEditPrayerHosting(hosting!)}
+                            className="px-2 py-1 bg-[#F4F7F4] hover:bg-[#E0E5DF] text-[#1E2621] rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                          >
+                            Edit
+                          </button>
+                        </div>
                       ) : (
                         <div className="flex items-center space-x-2">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#FEF9EE] border border-[#FEE2C7] text-[#8F4F19] text-xs font-bold">
-                            <span>🟡</span>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#DCFCE7] border border-[#BBF7D0] text-[#1E5E3A] text-xs font-bold">
+                            <span>🟢</span>
                             <span>Available</span>
                           </span>
                           <button
-                            onClick={() => setAssignHostDate(slot.date)}
+                            onClick={() => {
+                              setAssignHostDate(slot.date);
+                              setAssignHostUserId('');
+                              setAssignHostProvidesFood(false);
+                              setAssignHostProvidesDrinks(false);
+                              setAssignHostNotes('');
+                            }}
                             className="px-2.5 py-1 bg-[#1E5E3A] hover:bg-[#164E30] text-white rounded-lg text-xs font-bold cursor-pointer"
                           >
                             Assign Host
@@ -490,7 +627,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             className="p-2.5 rounded-xl bg-[#FAFAF7] border border-[#E0E5DF] flex items-center justify-between"
                           >
                             <span className="font-semibold text-[#1E2621]">
-                              🛕 {d.name} — <span className={isBooked ? 'text-[#1E2621] font-bold' : 'text-[#1E5E3A] font-bold'}>
+                              🛕 {d.name} — <span className={isBooked ? 'text-[#5D6B62] font-semibold' : 'text-[#1E5E3A] font-bold'}>
                                 {isBooked ? check.booking?.userName : 'Available'}
                               </span>
                             </span>
@@ -663,8 +800,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           {formatShortDate(b.startDate)} → {formatShortDate(b.endDate)}
                         </td>
                         <td className="py-3 px-4">
-                          <p className="font-bold text-[#1E2621]">{b.userName}</p>
-                          <p className="text-[11px] text-[#5D6B62]">📱 {b.userPhone}</p>
+                          <div className="flex items-center space-x-2">
+                            <DevoteeAvatar
+                              avatarUrl={b.userAvatarUrl || storage.getUserById(b.userId)?.avatarUrl}
+                              name={b.userName}
+                              size="xs"
+                              showRing
+                            />
+                            <div>
+                              <p className="font-bold text-[#1E2621]">{b.userName}</p>
+                              <p className="text-[11px] text-[#5D6B62]">📱 {b.userPhone}</p>
+                            </div>
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
@@ -719,6 +866,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <tr>
                     <th className="py-3 px-4">Date</th>
                     <th className="py-3 px-4">Host</th>
+                    <th className="py-3 px-4">Offerings</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
@@ -735,9 +883,40 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </td>
                         <td className="py-3 px-4 text-[#1E2621] font-medium">
                           {isBooked ? (
-                            <div>
-                              <p className="font-bold">{hosting.userName}</p>
-                              <p className="text-[11px] text-[#5D6B62]">📱 {hosting.userPhone}</p>
+                            <div className="flex items-center space-x-2">
+                              <DevoteeAvatar
+                                avatarUrl={hosting.userAvatarUrl || (hosting.userId ? storage.getUserById(hosting.userId)?.avatarUrl : undefined)}
+                                name={hosting.userName}
+                                size="xs"
+                                showRing
+                              />
+                              <div>
+                                <p className="font-bold">{hosting.userName}</p>
+                                <p className="text-[11px] text-[#5D6B62]">📱 {hosting.userPhone}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[#86968B] italic">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          {isBooked ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {hosting.providesFood && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EBF3ED] text-[#1E5E3A] border border-[#D2DFD5]" title="Food Provided">
+                                  <span>🍃</span>
+                                  <span>Food</span>
+                                </span>
+                              )}
+                              {hosting.providesDrinks && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FEF3EB] text-[#B85E22] border border-[#FAD7C0]" title="Coffee & Drinks Provided">
+                                  <span>☕</span>
+                                  <span>Drinks</span>
+                                </span>
+                              )}
+                              {!hosting.providesFood && !hosting.providesDrinks && (
+                                <span className="text-[#86968B] text-[11px] italic">No food/drinks</span>
+                              )}
                             </div>
                           ) : (
                             <span className="text-[#86968B] italic">—</span>
@@ -745,25 +924,39 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </td>
                         <td className="py-3 px-4">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
-                            isBooked ? 'bg-[#DCFCE7] text-[#1E5E3A]' : 'bg-[#FEF9EE] text-[#8F4F19]'
+                            isBooked ? 'bg-[#EAEFEA] text-[#5D6B62] border border-[#D2DFD5]' : 'bg-[#DCFCE7] text-[#1E5E3A]'
                           }`}>
-                            <span>{isBooked ? '🟢 Confirmed' : '🟡 Available'}</span>
+                            <span>{isBooked ? '⚪ Confirmed' : '🟢 Available'}</span>
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-3 px-4 text-right space-x-1">
                           {isBooked ? (
-                            <button
-                              onClick={() => {
-                                storage.cancelPrayerHosting(slot.date);
-                                onRefresh();
-                              }}
-                              className="px-2.5 py-1 text-xs font-bold text-[#5D6B62] hover:text-[#DC2626] hover:bg-[#FEE2E2] rounded-lg cursor-pointer"
-                            >
-                              Release
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleOpenEditPrayerHosting(hosting)}
+                                className="px-2.5 py-1 text-xs font-bold text-[#1E2621] hover:bg-[#E0E5DF] bg-[#F4F7F4] rounded-lg cursor-pointer transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  storage.cancelPrayerHosting(slot.date);
+                                  onRefresh();
+                                }}
+                                className="px-2.5 py-1 text-xs font-bold text-[#5D6B62] hover:text-[#DC2626] hover:bg-[#FEE2E2] rounded-lg cursor-pointer transition-colors"
+                              >
+                                Release
+                              </button>
+                            </>
                           ) : (
                             <button
-                              onClick={() => setAssignHostDate(slot.date)}
+                              onClick={() => {
+                                setAssignHostDate(slot.date);
+                                setAssignHostUserId('');
+                                setAssignHostProvidesFood(false);
+                                setAssignHostProvidesDrinks(false);
+                                setAssignHostNotes('');
+                              }}
                               className="px-3 py-1 bg-[#1E5E3A] hover:bg-[#164E30] text-white text-xs font-bold rounded-lg cursor-pointer"
                             >
                               Assign
@@ -780,162 +973,219 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
       )}
 
-      {/* DEVOTEE VALIDATION (Crucial user prompt: "all must be validated by admin when register against supabase") */}
+      {/* DEVOTEES & TEMPLE ADMINISTRATORS MANAGEMENT */}
       {activeSection === 'users' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-5 rounded-2xl border border-[#E0E5DF] shadow-xs">
             <div>
-              <h2 className="text-base font-bold text-[#1E2621] font-temple">
-                Devotee Registrations &amp; Supabase Validation
-              </h2>
-              <p className="text-xs text-[#5D6B62]">
-                Validate newly registered mobile phone accounts against the temple member registry.
+              <div className="flex items-center space-x-2">
+                <span className="text-xl">👥</span>
+                <h2 className="text-base sm:text-lg font-bold text-[#1E2621] font-temple">
+                  Devotee Directory &amp; Temple Administrators
+                </h2>
+              </div>
+              <p className="text-xs text-[#5D6B62] mt-1 max-w-xl">
+                Only administrators have permission to manage this portal. As an administrator, you can create new administrators with equal privileges or approve devotee accounts.
               </p>
             </div>
-            <span className="text-xs font-bold px-3 py-1 bg-[#FEF9EE] text-[#8F4F19] rounded-full border border-[#FEE2C7]">
-              {pendingUsers.length} Pending Approval
-            </span>
+
+            <button
+              onClick={() => setShowCreateAdminModal(true)}
+              className="flex items-center space-x-2 px-4 py-2.5 bg-[#1E5E3A] hover:bg-[#164E30] text-white font-bold rounded-xl text-xs shadow-xs transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>+ Create New Administrator</span>
+            </button>
           </div>
 
+          {/* Stats Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-3.5 rounded-xl bg-white border border-[#E0E5DF]">
+              <span className="text-[11px] font-bold text-[#5D6B62] uppercase tracking-wider block">Total Members</span>
+              <span className="text-xl font-extrabold text-[#1E2621]">{users.length}</span>
+            </div>
+            <div className="p-3.5 rounded-xl bg-[#EBF3ED] border border-[#CDE0D4]">
+              <span className="text-[11px] font-bold text-[#1E5E3A] uppercase tracking-wider block">Administrators</span>
+              <span className="text-xl font-extrabold text-[#1E5E3A]">{adminUsers.length} <span className="text-xs font-semibold">(Equal Privileges)</span></span>
+            </div>
+            <div className="p-3.5 rounded-xl bg-[#FEF9EE] border border-[#FEE2C7]">
+              <span className="text-[11px] font-bold text-[#8F4F19] uppercase tracking-wider block">Pending Approval</span>
+              <span className="text-xl font-extrabold text-[#D97736]">{pendingUsers.length}</span>
+            </div>
+            <div className="p-3.5 rounded-xl bg-white border border-[#E0E5DF]">
+              <span className="text-[11px] font-bold text-[#5D6B62] uppercase tracking-wider block">Approved Devotees</span>
+              <span className="text-xl font-extrabold text-[#1E2621]">{users.filter(u => u.role === 'user' && u.status === 'approved').length}</span>
+            </div>
+          </div>
+
+          {/* Filter Bar & Search */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+            <div className="flex items-center overflow-x-auto gap-1.5 pb-1">
+              {[
+                { id: 'all', label: `All (${users.length})` },
+                { id: 'admin', label: `🛡️ Administrators (${adminUsers.length})` },
+                { id: 'pending', label: `🟡 Pending (${pendingUsers.length})` },
+                { id: 'devotee', label: `Devotees (${users.filter(u => u.role === 'user').length})` },
+              ].map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setUserRoleFilter(f.id as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                    userRoleFilter === f.id
+                      ? 'bg-[#1E5E3A] text-white'
+                      : 'bg-white text-[#5D6B62] hover:bg-[#F4F7F4] border border-[#E0E5DF]'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative min-w-[200px] sm:w-64">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-[#5D6B62]" />
+              <input
+                type="text"
+                placeholder="Search name or phone..."
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                className="w-full text-xs pl-8 pr-3 py-2 bg-white border border-[#E0E5DF] rounded-xl text-[#1E2621] placeholder-[#8A968D]"
+              />
+            </div>
+          </div>
+
+          {/* Table */}
           <div className="bg-white rounded-2xl border border-[#E0E5DF] overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-[#FAFAF7] border-b border-[#E0E5DF] text-[#5D6B62] uppercase font-bold text-[11px] tracking-wider">
                   <tr>
-                    <th className="py-3 px-4">Mobile Phone</th>
-                    <th className="py-3 px-4">Full Name</th>
-                    <th className="py-3 px-4">Address</th>
-                    <th className="py-3 px-4">Role</th>
-                    <th className="py-3 px-4">Validation Status</th>
-                    <th className="py-3 px-4 text-right">Admin Action</th>
+                    <th className="py-3 px-4">Member / Administrator</th>
+                    <th className="py-3 px-4">Mobile Phone (Login)</th>
+                    <th className="py-3 px-4">Role &amp; Privilege</th>
+                    <th className="py-3 px-4">Account Status</th>
+                    <th className="py-3 px-4 text-right">Actions &amp; Authority</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E0E5DF]">
-                  {users.map(u => (
-                    <tr key={u.id} className={u.status === 'pending' ? 'bg-[#FEF9EE]/60' : 'hover:bg-[#F4F7F4]/60 transition-colors'}>
-                      <td className="py-3 px-4 font-bold text-[#1E2621]">
-                        📱 {u.mobilePhone}
-                      </td>
-                      <td className="py-3 px-4 font-medium text-[#1E2621]">
-                        {u.fullName}
-                      </td>
-                      <td className="py-3 px-4 text-[#5D6B62]">
-                        {u.address ? (
-                          <span className="text-xs text-[#1E2621] truncate max-w-xs block">{u.address}</span>
-                        ) : (
-                          <span className="text-xs text-[#8A968D]">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          u.role === 'admin' ? 'bg-[#FEF3EB] text-[#D97736]' : 'bg-[#F4F7F4] text-[#5D6B62]'
-                        }`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
-                          u.status === 'approved'
-                            ? 'bg-[#DCFCE7] text-[#1E5E3A]'
-                            : u.status === 'pending'
-                              ? 'bg-[#FEF9EE] text-[#8F4F19]'
-                              : 'bg-[#FEE2E2] text-[#991B1B]'
-                        }`}>
-                          <span>{u.status === 'approved' ? '🟢' : u.status === 'pending' ? '🟡' : '🔴'}</span>
-                          <span>{u.status}</span>
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right space-x-1.5">
-                        {u.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleApproveUser(u.id)}
-                              className="px-2.5 py-1 bg-[#1E5E3A] hover:bg-[#164E30] text-white rounded-lg text-xs font-bold shadow-2xs cursor-pointer"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectUser(u.id)}
-                              className="px-2 py-1 bg-[#F4F7F4] hover:bg-[#FEE2E2] text-[#1E2621] hover:text-[#DC2626] rounded-lg text-xs font-bold cursor-pointer"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
+                  {users
+                    .filter(u => {
+                      if (userRoleFilter === 'admin' && u.role !== 'admin') return false;
+                      if (userRoleFilter === 'pending' && u.status !== 'pending') return false;
+                      if (userRoleFilter === 'devotee' && u.role !== 'user') return false;
+                      if (userSearchQuery.trim()) {
+                        const q = userSearchQuery.toLowerCase();
+                        const matchName = u.fullName.toLowerCase().includes(q);
+                        const matchPhone = u.mobilePhone.includes(q);
+                        const matchAddr = u.address?.toLowerCase().includes(q);
+                        if (!matchName && !matchPhone && !matchAddr) return false;
+                      }
+                      return true;
+                    })
+                    .map(u => {
+                      const isCurrentAdmin = u.id === currentUser.id;
+                      const isAdmin = u.role === 'admin';
+                      return (
+                        <tr key={u.id} className={isAdmin ? 'bg-[#FAFBF9]' : u.status === 'pending' ? 'bg-[#FEF9EE]/60' : 'hover:bg-[#F4F7F4]/60 transition-colors'}>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center space-x-2.5">
+                              <DevoteeAvatar
+                                avatarUrl={u.avatarUrl}
+                                name={u.fullName}
+                                size="sm"
+                                showRing
+                                ringColor={isAdmin ? 'ring-[#1E5E3A]/40' : undefined}
+                              />
+                              <div>
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="font-bold text-[#1E2621] text-xs sm:text-sm">{u.fullName}</span>
+                                  {isCurrentAdmin && (
+                                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-[#1E5E3A] text-white uppercase tracking-wider">
+                                      You
+                                    </span>
+                                  )}
+                                </div>
+                                {u.email && (
+                                  <p className="text-[10px] text-[#5D6B62]">{u.email}</p>
+                                )}
+                                {u.address && (
+                                  <p className="text-[10px] text-[#8A968D] truncate max-w-xs">{u.address}</p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-bold text-[#1E2621]">
+                            📱 {u.mobilePhone}
+                          </td>
+                          <td className="py-3 px-4">
+                            {isAdmin ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#EBF3ED] text-[#1E5E3A] border border-[#CDE0D4]">
+                                <Shield className="w-3.5 h-3.5 text-[#1E5E3A]" />
+                                <span>Administrator (Full Privileges)</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[#F4F7F4] text-[#5D6B62]">
+                                <span>Devotee</span>
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                              u.status === 'approved'
+                                ? 'bg-[#DCFCE7] text-[#1E5E3A]'
+                                : u.status === 'pending'
+                                  ? 'bg-[#FEF9EE] text-[#8F4F19]'
+                                  : 'bg-[#FEE2E2] text-[#991B1B]'
+                            }`}>
+                              <span>{u.status === 'approved' ? '🟢' : u.status === 'pending' ? '🟡' : '🔴'}</span>
+                              <span>{u.status}</span>
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right space-x-1.5">
+                            {u.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={() => handleApproveUser(u.id)}
+                                  className="px-2.5 py-1 bg-[#1E5E3A] hover:bg-[#164E30] text-white rounded-lg text-xs font-bold shadow-2xs cursor-pointer"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleRejectUser(u.id)}
+                                  className="px-2 py-1 bg-[#F4F7F4] hover:bg-[#FEE2E2] text-[#1E2621] hover:text-[#DC2626] rounded-lg text-xs font-bold cursor-pointer"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
 
-                        {u.status === 'approved' && u.id !== currentUser.id && (
-                          <button
-                            onClick={() => handleToggleAdminRole(u)}
-                            className="px-2 py-1 bg-[#F4F7F4] hover:bg-[#E0E5DF] text-[#5D6B62] rounded-lg text-[11px] font-medium cursor-pointer"
-                          >
-                            {u.role === 'admin' ? 'Demote to User' : 'Make Admin'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                            {/* Promote devotee to Admin with equal privileges */}
+                            {!isAdmin && u.status === 'approved' && (
+                              <button
+                                onClick={() => handlePromoteToAdmin(u)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#FEF9EE] hover:bg-[#FDE7C7] text-[#8F4F19] border border-[#FEE2C7] rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
+                                title="Grant this devotee full administrator rights"
+                              >
+                                <Shield className="w-3 h-3 text-[#D97736]" />
+                                <span>Make Admin</span>
+                              </button>
+                            )}
+
+                            {/* Demote other admin */}
+                            {isAdmin && !isCurrentAdmin && (
+                              <button
+                                onClick={() => handleDemoteAdmin(u)}
+                                className="px-2 py-1 bg-[#F4F7F4] hover:bg-[#FEE2E2] text-[#5D6B62] hover:text-red-700 rounded-lg text-[11px] font-medium cursor-pointer transition-colors"
+                                title="Revoke admin privileges"
+                              >
+                                Demote to Devotee
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SUPABASE & NETLIFY DEPLOYMENT & SQL TAB */}
-      {activeSection === 'supabase' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-3xl border border-[#E0E5DF] p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[#E0E5DF]">
-              <div className="flex items-center space-x-2">
-                <Database className="w-5 h-5 text-[#1E5E3A]" />
-                <div>
-                  <h2 className="text-lg font-bold text-[#1E2621] font-temple">
-                    Supabase PostgreSQL Migration Script
-                  </h2>
-                  <p className="text-xs text-[#5D6B62]">
-                    Run this SQL in your Supabase SQL Editor. Includes tables, constraints, and RLS policies.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={copySchemaToClipboard}
-                className="flex items-center space-x-1.5 py-2 px-4 bg-[#1E5E3A] hover:bg-[#164E30] text-white font-bold rounded-xl text-xs shadow-xs cursor-pointer self-start sm:self-auto"
-              >
-                {copiedSQL ? <CheckCircle2 className="w-4 h-4 text-[#BBF7D0]" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedSQL ? 'COPIED TO CLIPBOARD!' : 'COPY SUPABASE SQL'}</span>
-              </button>
-            </div>
-
-            {/* Architecture guidelines for Netlify and GitHub */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div className="p-3.5 rounded-2xl bg-[#FEF9EE] border border-[#FEE2C7]">
-                <span className="font-bold text-[#1E2621] block mb-1">1. Supabase Database</span>
-                <p className="text-[#5D6B62] text-[11px] leading-relaxed">
-                  Uses <span className="font-mono font-semibold text-[#1E2621]">mobile_phone text unique</span> for auth identification. Admin approves accounts before status changes to &apos;approved&apos;.
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-[#EBF3ED] border border-[#CDE0D4]">
-                <span className="font-bold text-[#1E5E3A] block mb-1">2. Netlify Publishing</span>
-                <p className="text-[#5D6B62] text-[11px] leading-relaxed">
-                  Single-Page App built with Vite. Publish directory: <span className="font-mono font-semibold text-[#1E2621]">dist</span>. Add redirect rule in <span className="font-mono font-semibold text-[#1E2621]">_redirects</span> for SPA routing.
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E0E5DF]">
-                <span className="font-bold text-[#1E2621] block mb-1">3. GitHub Source Control</span>
-                <p className="text-[#5D6B62] text-[11px] leading-relaxed">
-                  Clean modular structure. Environment variables: <span className="font-mono font-semibold text-[#1E2621]">VITE_SUPABASE_URL</span> &amp; <span className="font-mono font-semibold text-[#1E2621]">VITE_SUPABASE_ANON_KEY</span>.
-                </p>
-              </div>
-            </div>
-
-            {/* Code Box */}
-            <div className="relative">
-              <pre className="p-4 bg-[#1E2621] text-[#E0E5DF] font-mono text-[11px] rounded-2xl overflow-x-auto max-h-80 leading-relaxed border border-[#37493D]">
-                {SUPABASE_SQL_SCHEMA}
-              </pre>
             </div>
           </div>
         </div>
@@ -1131,7 +1381,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-[#1E2621] uppercase tracking-wider mb-1">
-                Select Devotee Family
+                Select Devotee Family *
               </label>
               <select
                 value={assignHostUserId}
@@ -1145,6 +1395,52 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Offerings to Devotees (Checkboxes) */}
+            <div className="p-3 bg-[#FAF8F5] rounded-xl border border-[#E0E5DF] space-y-2">
+              <span className="block text-xs font-bold text-[#1E2621]">
+                Devotee Offerings (Prasadam Seva)
+              </span>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-semibold text-[#1E2621] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={assignHostProvidesFood}
+                    onChange={(e) => setAssignHostProvidesFood(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#1E5E3A] focus:ring-[#1E5E3A] cursor-pointer"
+                  />
+                  <span className="inline-flex items-center gap-1">
+                    <span>🍃</span>
+                    <span>Host provides food</span>
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-[#1E2621] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={assignHostProvidesDrinks}
+                    onChange={(e) => setAssignHostProvidesDrinks(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#D97736] focus:ring-[#D97736] cursor-pointer"
+                  />
+                  <span className="inline-flex items-center gap-1">
+                    <span>☕</span>
+                    <span>Host provides drinks (Coffee)</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[#1E2621] uppercase tracking-wider mb-1">
+                Prasadam / Notes (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Vegetarian lunch & hot filter coffee"
+                value={assignHostNotes}
+                onChange={(e) => setAssignHostNotes(e.target.value)}
+                className="w-full text-xs bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl p-2.5 text-[#1E2621]"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-2">
@@ -1162,6 +1458,258 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 CONFIRM HOST
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Prayer Host Modal */}
+      {editingPrayerHosting && (
+        <div className="fixed inset-0 z-50 bg-[#1E2621]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-[#E0E5DF] max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E0E5DF]">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#FEF3EB] text-[#D97736] flex items-center justify-center text-xl shadow-2xs">
+                  🙏
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#1E2621] text-base font-temple">
+                    Edit Prayer Hosting
+                  </h3>
+                  <p className="text-[11px] text-[#5D6B62]">
+                    {formatFullSunday(editingPrayerHosting.date)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingPrayerHosting(null)}
+                className="p-1.5 rounded-full text-[#5D6B62] hover:bg-[#F4F7F4] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePrayerHosting} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#1E2621] uppercase tracking-wider mb-1">
+                  Host Devotee
+                </label>
+                <select
+                  value={editHostUserId}
+                  onChange={(e) => setEditHostUserId(e.target.value)}
+                  className="w-full text-xs font-bold bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl p-2.5 text-[#1E2621] cursor-pointer"
+                >
+                  <option value="">{editingPrayerHosting.userName} (Current Host)</option>
+                  {users.filter(u => u.status === 'approved').map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.fullName} (📱 {u.mobilePhone})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Offerings Checkboxes */}
+              <div className="p-3.5 bg-[#FAF8F5] rounded-2xl border border-[#E0E5DF] space-y-2.5">
+                <span className="block text-xs font-bold text-[#1E2621]">
+                  Offerings to Devotees
+                </span>
+                <p className="text-[11px] text-[#5D6B62]">
+                  Select the checkboxes to show food (🍃) and drinks (☕) indicators to all devotees across the portal.
+                </p>
+
+                <div className="space-y-2 pt-1">
+                  <label className="flex items-center gap-2.5 text-xs font-semibold text-[#1E2621] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editHostProvidesFood}
+                      onChange={(e) => setEditHostProvidesFood(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#1E5E3A] focus:ring-[#1E5E3A] cursor-pointer"
+                    />
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-base">🍃</span>
+                      <span>Host provides food</span>
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 text-xs font-semibold text-[#1E2621] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editHostProvidesDrinks}
+                      onChange={(e) => setEditHostProvidesDrinks(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#D97736] focus:ring-[#D97736] cursor-pointer"
+                    />
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-base">☕</span>
+                      <span>Host provides drinks (Coffee / tea / beverages)</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E2621] uppercase tracking-wider mb-1">
+                  Prasadam Menu / Notes
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Vegetarian lunch & hot filter coffee"
+                  value={editHostNotes}
+                  onChange={(e) => setEditHostNotes(e.target.value)}
+                  className="w-full text-xs bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl p-2.5 text-[#1E2621]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E0E5DF]">
+                <button
+                  type="button"
+                  onClick={() => setEditingPrayerHosting(null)}
+                  className="py-2.5 rounded-xl border border-[#E0E5DF] text-[#5D6B62] hover:bg-[#F4F7F4] font-bold text-xs cursor-pointer"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 rounded-xl bg-[#1E5E3A] hover:bg-[#164E30] text-white font-bold text-xs shadow-xs cursor-pointer"
+                >
+                  SAVE CHANGES
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create New Administrator Modal */}
+      {showCreateAdminModal && (
+        <div className="fixed inset-0 z-50 bg-[#1E2621]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-[#E0E5DF] max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E0E5DF]">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#EBF3ED] text-[#1E5E3A] flex items-center justify-center font-bold shadow-2xs">
+                  <ShieldCheck className="w-5 h-5 text-[#1E5E3A]" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#1E2621] text-base font-temple">
+                    Create New Administrator
+                  </h3>
+                  <p className="text-[11px] text-[#5D6B62]">
+                    Assign full equal privileges to manage the administration portal
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCreateAdminModal(false);
+                  setCreateAdminError('');
+                  setCreateAdminSuccess('');
+                }}
+                className="p-1.5 rounded-full text-[#5D6B62] hover:bg-[#F4F7F4] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAdmin} className="space-y-3.5">
+              <div className="p-3.5 rounded-xl bg-[#EBF3ED] border border-[#CDE0D4] text-xs text-[#1E5E3A] space-y-1.5">
+                <div className="flex items-center space-x-1.5 font-bold">
+                  <Shield className="w-4 h-4 text-[#1E5E3A]" />
+                  <span>Equal Administrator Privileges Granted:</span>
+                </div>
+                <ul className="text-[11px] list-disc list-inside space-y-0.5 text-[#164E30]">
+                  <li>Full access to Temple Administration Portal</li>
+                  <li>Manage Vigraha deities &amp; assign devotee slots</li>
+                  <li>Assign &amp; oversee Sunday prayer hosting</li>
+                  <li>Approve devotee accounts &amp; create other administrators</li>
+                </ul>
+              </div>
+
+              {createAdminError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center space-x-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{createAdminError}</span>
+                </div>
+              )}
+
+              {createAdminSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs font-semibold flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{createAdminSuccess}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E2621] uppercase tracking-wider mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Ramesh Krishnan"
+                  value={adminFullName}
+                  onChange={(e) => setAdminFullName(e.target.value)}
+                  className="w-full text-xs bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl p-2.5 text-[#1E2621] font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E2621] uppercase tracking-wider mb-1">
+                  Mobile Phone (Login Identifier) *
+                </label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="e.g. 0162216904 or 0123456789"
+                  value={adminPhone}
+                  onChange={(e) => setAdminPhone(e.target.value)}
+                  className="w-full text-xs bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl p-2.5 text-[#1E2621] font-medium"
+                />
+                <p className="text-[10px] text-[#5D6B62] mt-1">
+                  The new administrator will use this mobile phone number to log in with full administrative privileges.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E2621] uppercase tracking-wider mb-1">
+                  Email Address (Optional)
+                </label>
+                <input
+                  type="email"
+                  placeholder="e.g. ramesh@temple.org"
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  className="w-full text-xs bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl p-2.5 text-[#1E2621]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E2621] uppercase tracking-wider mb-1">
+                  Residential Address (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Georgetown, Penang"
+                  value={adminAddress}
+                  onChange={(e) => setAdminAddress(e.target.value)}
+                  className="w-full text-xs bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl p-2.5 text-[#1E2621]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-[#E0E5DF]">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateAdminModal(false)}
+                  className="py-2.5 rounded-xl border border-[#E0E5DF] text-[#5D6B62] hover:bg-[#F4F7F4] font-bold text-xs cursor-pointer"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 rounded-xl bg-[#1E5E3A] hover:bg-[#164E30] text-white font-bold text-xs shadow-xs cursor-pointer flex items-center justify-center space-x-1.5"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>CREATE ADMIN</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

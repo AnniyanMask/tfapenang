@@ -3,6 +3,7 @@ import { PrayerHosting, SundaySlotInfo, User } from '../types';
 import { storage } from '../services/storage';
 import { formatFullSunday, formatMonthYear, getSundaysInMonth } from '../utils/dateUtils';
 import confetti from 'canvas-confetti';
+import { DevoteeAvatar } from './DevoteeAvatar';
 import { 
   HeartHandshake, 
   Calendar as CalendarIcon, 
@@ -32,6 +33,8 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<SundaySlotInfo | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [prasadamNote, setPrasadamNote] = useState<string>('');
+  const [providesFood, setProvidesFood] = useState<boolean>(false);
+  const [providesDrinks, setProvidesDrinks] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [confirmedHosting, setConfirmedHosting] = useState<PrayerHosting | null>(null);
@@ -41,6 +44,9 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
   const handleSelectSunday = (slot: SundaySlotInfo) => {
     setBookingError(null);
     setSelectedSlot(slot);
+    setPrasadamNote('');
+    setProvidesFood(false);
+    setProvidesDrinks(false);
     setShowConfirmModal(true);
   };
 
@@ -54,7 +60,9 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
       const result = storage.bookPrayerHosting({
         date: selectedSlot.date,
         user: currentUser,
-        notes: prasadamNote || 'Sunday prayer seva & prasadam'
+        notes: prasadamNote || 'Sunday prayer seva & prasadam',
+        providesFood,
+        providesDrinks
       });
 
       setIsSubmitting(false);
@@ -101,7 +109,7 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
               </h3>
             </div>
 
-            <div className="text-xs space-y-1 pt-2 border-t border-[#E0E5DF]">
+            <div className="text-xs space-y-1.5 pt-2 border-t border-[#E0E5DF]">
               <div className="flex justify-between">
                 <span className="text-[#5D6B62]">Prayer Seva Schedule:</span>
                 <span className="font-bold text-[#1E2621]">10:30 AM Bhajan &amp; Satsang</span>
@@ -109,6 +117,26 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
               <div className="flex justify-between">
                 <span className="text-[#5D6B62]">Community Prasadam:</span>
                 <span className="font-bold text-[#1E5E3A]">After prayers (12:30 PM)</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#5D6B62]">Host Offerings:</span>
+                <div className="flex items-center gap-1.5">
+                  {confirmedHosting.providesFood && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#EBF3ED] text-[#1E5E3A] border border-[#D2DFD5]">
+                      <span>🍃</span>
+                      <span>Food</span>
+                    </span>
+                  )}
+                  {confirmedHosting.providesDrinks && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#FEF3EB] text-[#B85E22] border border-[#FAD7C0]">
+                      <span>☕</span>
+                      <span>Drinks (Coffee)</span>
+                    </span>
+                  )}
+                  {!confirmedHosting.providesFood && !confirmedHosting.providesDrinks && (
+                    <span className="text-xs text-[#5D6B62]">Prayer Seva</span>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#5D6B62]">Host Family:</span>
@@ -217,7 +245,7 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
           </div>
           <div>
             <h4 className="text-xs font-bold text-[#1E2621]">Prasadam Seva</h4>
-            <p className="text-[11px] text-[#5D6B62]">Blessed feast for 50-80 devotees</p>
+            <p className="text-[11px] text-[#5D6B62]">Blessed feast for devotees</p>
           </div>
         </div>
 
@@ -251,6 +279,7 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
               <tr>
                 <th className="py-3 px-5">Sunday</th>
                 <th className="py-3 px-5">Host</th>
+                <th className="py-3 px-5">Offerings</th>
                 <th className="py-3 px-5">Status</th>
                 <th className="py-3 px-5 text-right">Action</th>
               </tr>
@@ -260,6 +289,9 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
                 const hosting = storage.getPrayerHostingForDate(slot.date);
                 const isBooked = hosting && hosting.status === 'confirmed';
                 const hostName = isBooked ? (hosting.userName || 'Devotee') : '—';
+                const hostAvatar = isBooked 
+                  ? (hosting.userAvatarUrl || (hosting.userId ? storage.getUserById(hosting.userId)?.avatarUrl : undefined))
+                  : undefined;
 
                 return (
                   <tr key={slot.date} className="hover:bg-[#FAF8F5] transition-colors">
@@ -267,24 +299,65 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
                       {slot.formattedDate}
                     </td>
                     <td className="py-3.5 px-5 text-[#1E2621] font-medium">
-                      {hostName}
+                      {isBooked ? (
+                        <div className="flex items-center space-x-2.5">
+                          <DevoteeAvatar
+                            avatarUrl={hostAvatar}
+                            name={hostName}
+                            size="sm"
+                            showRing
+                            ringColor="ring-[#1E5E3A]/20"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-bold text-[#1E2621] text-xs leading-tight truncate max-w-[160px]">
+                              {hostName}
+                            </p>
+                            <span className="text-[10px] text-[#5D6B62]">Host Devotee</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-[#8A968D] text-xs font-medium">— Open —</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-5">
                       {isBooked ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#1E5E3A] font-bold uppercase tracking-wider">
-                          <span>🟢</span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {hosting.providesFood && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EBF3ED] text-[#1E5E3A] border border-[#D2DFD5]" title="Food Provided">
+                              <span>🍃</span>
+                              <span>Food</span>
+                            </span>
+                          )}
+                          {hosting.providesDrinks && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FEF3EB] text-[#B85E22] border border-[#FAD7C0]" title="Coffee & Drinks Provided">
+                              <span>☕</span>
+                              <span>Drinks</span>
+                            </span>
+                          )}
+                          {!hosting.providesFood && !hosting.providesDrinks && (
+                            <span className="text-[11px] text-[#8A968D] italic">—</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-[#8A968D] italic">—</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-5">
+                      {isBooked ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EAEFEA] text-[#5D6B62] border border-[#D2DFD5] font-bold uppercase tracking-wider text-xs">
+                          <span>⚪</span>
                           <span>BOOKED</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FEF9EE] text-[#8F4F19] font-bold uppercase tracking-wider">
-                          <span>🟡</span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#1E5E3A] font-bold uppercase tracking-wider text-xs">
+                          <span>🟢</span>
                           <span>AVAILABLE</span>
                         </span>
                       )}
                     </td>
                     <td className="py-3.5 px-5 text-right">
                       {isBooked ? (
-                        <span className="text-xs font-bold text-[#8A968D] bg-[#F4F7F4] px-3 py-1.5 rounded-xl">
+                        <span className="text-xs font-bold text-[#8A968D] bg-[#F4F7F4] px-3 py-1.5 rounded-xl inline-block">
                           BOOKED
                         </span>
                       ) : (
@@ -309,6 +382,9 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
             const hosting = storage.getPrayerHostingForDate(slot.date);
             const isBooked = hosting && hosting.status === 'confirmed';
             const hostName = isBooked ? (hosting.userName || 'Devotee') : null;
+            const hostAvatar = isBooked 
+              ? (hosting.userAvatarUrl || (hosting.userId ? storage.getUserById(hosting.userId)?.avatarUrl : undefined))
+              : undefined;
 
             return (
               <div key={slot.date} className="p-4 flex flex-col space-y-3">
@@ -317,24 +393,58 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
                     {slot.fullDisplay}
                   </span>
                   {isBooked ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#1E5E3A] text-xs font-bold uppercase tracking-wider">
-                      <span>🟢</span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#EAEFEA] text-[#5D6B62] border border-[#D2DFD5] text-xs font-bold uppercase tracking-wider">
+                      <span>⚪</span>
                       <span>BOOKED</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FEF9EE] text-[#8F4F19] text-xs font-bold uppercase tracking-wider">
-                      <span>🟡</span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#1E5E3A] text-xs font-bold uppercase tracking-wider">
+                      <span>🟢</span>
                       <span>AVAILABLE</span>
                     </span>
                   )}
                 </div>
 
-                <div className="text-xs text-[#5D6B62] flex items-center justify-between">
-                  <span>Host:</span>
-                  <span className="font-semibold text-[#1E2621]">
-                    {hostName || 'Available for hosting'}
-                  </span>
-                </div>
+                {isBooked ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-3 p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E0E5DF]">
+                      <DevoteeAvatar
+                        avatarUrl={hostAvatar}
+                        name={hostName || 'Devotee'}
+                        size="md"
+                        showRing
+                        ringColor="ring-[#1E5E3A]/30"
+                      />
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-[#1E5E3A] tracking-wider block">
+                          Prayer Host Family
+                        </span>
+                        <p className="font-bold text-[#1E2621] text-xs">{hostName}</p>
+                      </div>
+                    </div>
+                    {(hosting.providesFood || hosting.providesDrinks) && (
+                      <div className="flex flex-wrap items-center gap-1.5 px-1">
+                        {hosting.providesFood && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EBF3ED] text-[#1E5E3A] border border-[#D2DFD5]">
+                            <span>🍃</span>
+                            <span>Food Provided</span>
+                          </span>
+                        )}
+                        {hosting.providesDrinks && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FEF3EB] text-[#B85E22] border border-[#FAD7C0]">
+                            <span>☕</span>
+                            <span>Drinks Provided</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs text-[#5D6B62] flex items-center justify-between">
+                    <span>Host:</span>
+                    <span className="font-semibold text-[#1E5E3A]">Open for Community Devotees</span>
+                  </div>
+                )}
 
                 <div>
                   {isBooked ? (
@@ -401,9 +511,61 @@ export const PrayerHostingPage: React.FC<PrayerHostingPageProps> = ({
                 <span className="font-semibold text-[#1E5E3A]">After Sunday prayers</span>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-[#5D6B62]">Host Family:</span>
-                <span className="font-semibold text-[#1E2621]">{currentUser.fullName} ({currentUser.mobilePhone})</span>
+              <div className="flex items-center justify-between pt-2 border-t border-[#E0E5DF]">
+                <span className="text-[#5D6B62]">Host Devotee:</span>
+                <div className="flex items-center space-x-2">
+                  <DevoteeAvatar
+                    avatarUrl={currentUser.avatarUrl}
+                    name={currentUser.fullName}
+                    size="xs"
+                    showRing
+                  />
+                  <span className="font-semibold text-[#1E2621]">{currentUser.fullName}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Food & Drinks Hospitality Offerings Checkboxes */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-[#1E2621] uppercase tracking-wider mb-2">
+                Food &amp; Drinks Offerings (Host Seva)
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <label className={`flex items-center space-x-3 p-3 rounded-2xl border cursor-pointer select-none transition-all ${
+                  providesFood 
+                    ? 'bg-[#EBF3ED] border-[#1E5E3A] ring-1 ring-[#1E5E3A]/30' 
+                    : 'bg-[#FAFAF7] border-[#E0E5DF] hover:border-[#1E5E3A]/40'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={providesFood}
+                    onChange={(e) => setProvidesFood(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#1E5E3A] focus:ring-[#1E5E3A] accent-[#1E5E3A]"
+                  />
+                  <span className="text-xl">🍃</span>
+                  <div className="text-left leading-tight">
+                    <span className="text-xs font-bold text-[#1E2621] block">Food Provided</span>
+                    <span className="text-[10px] text-[#5D6B62]">Prasadam / meal</span>
+                  </div>
+                </label>
+
+                <label className={`flex items-center space-x-3 p-3 rounded-2xl border cursor-pointer select-none transition-all ${
+                  providesDrinks 
+                    ? 'bg-[#FEF3EB] border-[#D97736] ring-1 ring-[#D97736]/30' 
+                    : 'bg-[#FAFAF7] border-[#E0E5DF] hover:border-[#D97736]/40'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={providesDrinks}
+                    onChange={(e) => setProvidesDrinks(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#D97736] focus:ring-[#D97736] accent-[#D97736]"
+                  />
+                  <span className="text-xl">☕</span>
+                  <div className="text-left leading-tight">
+                    <span className="text-xs font-bold text-[#1E2621] block">Drinks Provided</span>
+                    <span className="text-[10px] text-[#5D6B62]">Coffee &amp; beverages</span>
+                  </div>
+                </label>
               </div>
             </div>
 

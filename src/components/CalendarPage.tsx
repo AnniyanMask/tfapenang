@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Deity, DeityBooking, PrayerHosting, SundaySlotInfo, User } from '../types';
 import { storage } from '../services/storage';
 import { formatFullSunday, formatMonthYear, formatShortDate, getSundaysInMonth, getSundaysInYear } from '../utils/dateUtils';
+import { DevoteeAvatar } from './DevoteeAvatar';
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -186,8 +187,14 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
                         <div className="text-[11px] font-semibold text-[#5D6B62]">
                           {bookedDeitiesCount} / {deities.length} Deities Booked
                         </div>
-                        <div className="text-[11px] text-[#5D6B62]">
-                          Prayer Host: {hasHost ? '🟢 Assigned' : '🟡 Open'}
+                        <div className="text-[11px] text-[#5D6B62] flex items-center gap-1 justify-end">
+                          <span>Prayer Host: {hasHost ? '⚪ Assigned' : '🟢 Open'}</span>
+                          {hasHost && (
+                            <span className="inline-flex items-center gap-0.5 ml-1">
+                              {hosting.providesFood && <span title="Food Provided">🍃</span>}
+                              {hosting.providesDrinks && <span title="Coffee & Drinks Provided">☕</span>}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <ChevronRight className={`w-4 h-4 text-[#5D6B62] transition-transform ${isSelected ? 'translate-x-1 text-[#1E5E3A]' : ''}`} />
@@ -238,10 +245,29 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
 
                           <div className="flex items-center space-x-2">
                             {isBooked ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FEE2E2] text-[#991B1B] text-[10px] font-bold uppercase tracking-wider">
-                                <span>🔴</span>
-                                <span>Booked</span>
-                              </span>
+                              <div className="flex items-center space-x-2">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#EAEFEA] text-[#5D6B62] border border-[#D2DFD5] text-[10px] font-bold uppercase tracking-wider">
+                                  <span>⚪</span>
+                                  <span>Booked</span>
+                                </span>
+                                {check.booking && (
+                                  <div className="flex items-center space-x-1.5" title={`Booked by ${check.booking.userName}`}>
+                                    <DevoteeAvatar
+                                      avatarUrl={
+                                        check.booking.userAvatarUrl || 
+                                        storage.getUserById(check.booking.userId)?.avatarUrl
+                                      }
+                                      name={check.booking.userName}
+                                      size="xs"
+                                      showRing
+                                      ringColor="ring-[#1E5E3A]/20"
+                                    />
+                                    <span className="text-[11px] font-semibold text-[#1E2621] max-w-[85px] truncate">
+                                      {check.booking.userName.split(' ')[0]}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <div className="flex items-center space-x-1.5">
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#1E5E3A] text-[10px] font-bold uppercase tracking-wider">
@@ -272,24 +298,55 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
                   {(() => {
                     const hosting = storage.getPrayerHostingForDate(inspectedSunday.date);
                     const isBooked = hosting && hosting.status === 'confirmed';
+                    const hostAvatar = isBooked
+                      ? (hosting.userAvatarUrl || (hosting.userId ? storage.getUserById(hosting.userId)?.avatarUrl : undefined))
+                      : undefined;
 
                     return (
                       <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E0E5DF] flex items-center justify-between">
                         <div>
                           {isBooked ? (
-                            <div>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#1E5E3A] text-xs font-bold uppercase tracking-wider mb-1">
-                                <span>🟢</span>
-                                <span>Booked</span>
-                              </span>
-                              <p className="text-xs font-bold text-[#1E2621]">
-                                Host: {hosting.userName || 'Devotee Family'}
-                              </p>
+                            <div className="flex items-center space-x-3">
+                              <DevoteeAvatar
+                                avatarUrl={hostAvatar}
+                                name={hosting.userName || 'Devotee'}
+                                size="md"
+                                showRing
+                                ringColor="ring-[#1E5E3A]/20"
+                              />
+                              <div>
+                                <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#EAEFEA] text-[#5D6B62] border border-[#D2DFD5] text-xs font-bold uppercase tracking-wider">
+                                    <span>⚪</span>
+                                    <span>Booked</span>
+                                  </span>
+                                  {hosting.providesFood && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EBF3ED] text-[#1E5E3A] border border-[#D2DFD5]" title="Food Provided">
+                                      <span>🍃</span>
+                                      <span>Food</span>
+                                    </span>
+                                  )}
+                                  {hosting.providesDrinks && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FEF3EB] text-[#B85E22] border border-[#FAD7C0]" title="Coffee & Drinks Provided">
+                                      <span>☕</span>
+                                      <span>Drinks</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs font-bold text-[#1E2621]">
+                                  Host: {hosting.userName || 'Devotee Family'}
+                                </p>
+                                {hosting.notes && (
+                                  <p className="text-[10px] text-[#5D6B62] italic truncate max-w-[190px]">
+                                    {hosting.notes}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           ) : (
                             <div>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FEF9EE] text-[#8F4F19] text-xs font-bold uppercase tracking-wider mb-1">
-                                <span>🟡</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#1E5E3A] text-xs font-bold uppercase tracking-wider mb-1">
+                                <span>🟢</span>
                                 <span>Available</span>
                               </span>
                               <p className="text-xs text-[#5D6B62]">
@@ -380,10 +437,12 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
                               }`}>
                                 {deities.length - bookedCount} open
                               </span>
-                              <span className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
-                                hasHost ? 'bg-[#F4F7F4] text-[#5D6B62]' : 'bg-[#FEF9EE] text-[#8F4F19]'
+                              <span className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wider inline-flex items-center gap-0.5 ${
+                                hasHost ? 'bg-[#F4F7F4] text-[#5D6B62]' : 'bg-[#DCFCE7] text-[#1E5E3A]'
                               }`}>
-                                {hasHost ? 'Host ✓' : 'Need Host'}
+                                <span>{hasHost ? 'Host ✓' : 'Need Host'}</span>
+                                {hasHost && hosting?.providesFood && <span>🍃</span>}
+                                {hasHost && hosting?.providesDrinks && <span>☕</span>}
                               </span>
                             </div>
                           </div>

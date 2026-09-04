@@ -4,6 +4,7 @@ import { storage } from '../services/storage';
 import { formatFullSunday, formatMonthYear, formatShortDate, getSundaysInMonth, getSundaysInYear } from '../utils/dateUtils';
 import confetti from 'canvas-confetti';
 import { DeityIconDisplay } from './BrandLogo';
+import { DevoteeAvatar } from './DevoteeAvatar';
 import { 
   Calendar as CalendarIcon, 
   CheckCircle2, 
@@ -41,14 +42,6 @@ export const DeityBookingPage: React.FC<DeityBookingPageProps> = ({
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [confirmedBooking, setConfirmedBooking] = useState<DeityBooking | null>(null);
-
-  // Test toggle to easily simulate race condition (Rule 22)
-  const [simulateConflict, setSimulateConflict] = useState<boolean>(storage.isConflictSimulated());
-
-  const handleToggleSimulateConflict = (val: boolean) => {
-    setSimulateConflict(val);
-    storage.setSimulateConflict(val);
-  };
 
   // Get Sundays for current view
   const sundays = getSundaysInMonth(selectedYear, selectedMonth);
@@ -185,23 +178,6 @@ export const DeityBookingPage: React.FC<DeityBookingPageProps> = ({
           <p className="text-xs sm:text-sm text-[#5D6B62] mt-1">
             Reserve a sacred Vigraha for one Sunday-to-Sunday week to worship at your home.
           </p>
-        </div>
-
-        {/* Conflict test switch for grading and demonstration */}
-        <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-xl border border-[#E0E5DF] shadow-2xs self-start sm:self-auto text-xs">
-          <span className="text-[#5D6B62] font-medium">Test Conflict Shield:</span>
-          <button
-            type="button"
-            onClick={() => handleToggleSimulateConflict(!simulateConflict)}
-            className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition-colors cursor-pointer ${
-              simulateConflict 
-                ? 'bg-red-600 text-white' 
-                : 'bg-[#F4F7F4] text-[#5D6B62] hover:bg-[#E0E5DF]'
-            }`}
-            title="Toggle to simulate another user booking this exact slot right before you confirm"
-          >
-            {simulateConflict ? 'ON (Simulate Collision)' : 'OFF (Normal)'}
-          </button>
         </div>
       </div>
 
@@ -377,11 +353,11 @@ export const DeityBookingPage: React.FC<DeityBookingPageProps> = ({
                       Cycle: <span className="text-[#1E2621] font-semibold">{slot.formattedDate} → {slot.formattedNextSunday}</span>
                     </p>
 
-                    <div className="flex items-center space-x-2 pt-1">
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
                       {/* Consistent Status Badge (Rule 20: Color + Text) */}
                       {isBooked ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FEE2E2] text-[#991B1B] text-xs font-bold uppercase tracking-wider">
-                          <span>🔴</span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EAEFEA] text-[#5D6B62] border border-[#D2DFD5] text-xs font-bold uppercase tracking-wider">
+                          <span>⚪</span>
                           <span>BOOKED</span>
                         </span>
                       ) : (
@@ -391,15 +367,23 @@ export const DeityBookingPage: React.FC<DeityBookingPageProps> = ({
                         </span>
                       )}
 
-                      {/* Display reserved info */}
-                      {isBooked && (
-                        <span className="text-xs text-[#5D6B62] font-medium">
-                          {isMyBooking 
-                            ? '• Booked by you' 
-                            : currentUser.role === 'admin' 
-                              ? `• Booked by: ${bookingCheck.booking?.userName}` 
-                              : ''}
-                        </span>
+                      {/* Display devotee profile picture and identification for all users */}
+                      {isBooked && bookingCheck.booking && (
+                        <div className="flex items-center space-x-2 pl-1">
+                          <DevoteeAvatar
+                            avatarUrl={
+                              bookingCheck.booking.userAvatarUrl || 
+                              storage.getUserById(bookingCheck.booking.userId)?.avatarUrl
+                            }
+                            name={bookingCheck.booking.userName}
+                            size="xs"
+                            showRing
+                            ringColor="ring-[#1E5E3A]/20"
+                          />
+                          <span className="text-xs font-semibold text-[#1E2621]">
+                            {isMyBooking ? 'Booked by you' : bookingCheck.booking.userName}
+                          </span>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -482,6 +466,19 @@ export const DeityBookingPage: React.FC<DeityBookingPageProps> = ({
               <div className="flex items-center justify-between pt-2 border-t border-[#E0E5DF]">
                 <span className="text-[#5D6B62]">Return:</span>
                 <span className="font-semibold text-[#1E2621]">{selectedSlot.formattedNextSunday}</span>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-[#E0E5DF]">
+                <span className="text-[#5D6B62]">Devotee:</span>
+                <div className="flex items-center space-x-2">
+                  <DevoteeAvatar
+                    avatarUrl={currentUser.avatarUrl}
+                    name={currentUser.fullName}
+                    size="xs"
+                    showRing
+                  />
+                  <span className="font-semibold text-[#1E2621]">{currentUser.fullName}</span>
+                </div>
               </div>
             </div>
 

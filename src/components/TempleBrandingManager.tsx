@@ -44,7 +44,7 @@ export const TempleBrandingManager: React.FC<TempleBrandingManagerProps> = ({ on
   const [mode, setMode] = useState<'image' | 'emoji'>(current.type || 'image');
   const [imageUrl, setImageUrl] = useState<string>(current.type === 'image' ? current.value : '/images/temple-logo.png');
   const [emojiVal, setEmojiVal] = useState<string>(current.type === 'emoji' ? current.value : '🕉️');
-  const [templeName, setTempleName] = useState<string>(current.templeName || 'Temple Of Fine Arts');
+  const [templeName, setTempleName] = useState<string>(current.templeName || 'Temple Of Fine Arts Penang');
   const [tagline, setTagline] = useState<string>(current.tagline || 'Deity & Sunday Prayer Seva');
 
   const [isDragging, setIsDragging] = useState(false);
@@ -57,7 +57,7 @@ export const TempleBrandingManager: React.FC<TempleBrandingManagerProps> = ({ on
   const previewBranding: TempleBranding = {
     type: mode,
     value: mode === 'image' ? imageUrl : (emojiVal.trim() || '🕉️'),
-    templeName: templeName.trim() || 'Temple Of Fine Arts',
+    templeName: templeName.trim() || 'Temple Of Fine Arts Penang',
     tagline: tagline.trim() || 'Deity & Sunday Prayer Seva'
   };
 
@@ -144,7 +144,7 @@ export const TempleBrandingManager: React.FC<TempleBrandingManagerProps> = ({ on
     const newBranding: TempleBranding = {
       type: mode,
       value: mode === 'image' ? (imageUrl || '/images/temple-logo.png') : (emojiVal.trim() || '🕉️'),
-      templeName: templeName.trim() || 'Temple Of Fine Arts',
+      templeName: templeName.trim() || 'Temple Of Fine Arts Penang',
       tagline: tagline.trim() || 'Deity & Sunday Prayer Seva'
     };
 
@@ -158,7 +158,7 @@ export const TempleBrandingManager: React.FC<TempleBrandingManagerProps> = ({ on
     setMode('image');
     setImageUrl(DEFAULT_TEMPLE_BRANDING.value);
     setEmojiVal('🕉️');
-    setTempleName(DEFAULT_TEMPLE_BRANDING.templeName || 'Temple Of Fine Arts');
+    setTempleName(DEFAULT_TEMPLE_BRANDING.templeName || 'Temple Of Fine Arts Penang');
     setTagline(DEFAULT_TEMPLE_BRANDING.tagline || 'Deity & Sunday Prayer Seva');
 
     storage.setTempleBranding(DEFAULT_TEMPLE_BRANDING);
@@ -377,7 +377,7 @@ export const TempleBrandingManager: React.FC<TempleBrandingManagerProps> = ({ on
                   type="text"
                   value={templeName}
                   onChange={(e) => setTempleName(e.target.value)}
-                  placeholder="e.g. Temple Of Fine Arts"
+                  placeholder="e.g. Temple Of Fine Arts Penang"
                   className="w-full px-3.5 py-2 border border-[#E0E5DF] rounded-xl bg-[#FAFAF7] focus:bg-white focus:border-[#1E5E3A] text-sm text-[#1E2621] outline-none"
                 />
               </div>

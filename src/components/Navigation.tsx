@@ -2,6 +2,7 @@ import React from 'react';
 import { ActiveTab, User } from '../types';
 import { storage } from '../services/storage';
 import { BrandLogo } from './BrandLogo';
+import { DevoteeAvatar } from './DevoteeAvatar';
 import { 
   Home, 
   Calendar as CalendarIcon, 
@@ -14,7 +15,8 @@ import {
   Sparkles,
   Menu,
   X,
-  AlertCircle
+  AlertCircle,
+  Bell
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -40,6 +42,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'deity-booking' as ActiveTab, label: 'Deity Booking', icon: Flame, emoji: '🛕' },
     { id: 'prayer-hosting' as ActiveTab, label: 'Prayer Hosting', icon: HeartHandshake, emoji: '🙏' },
     { id: 'calendar' as ActiveTab, label: 'Calendar', icon: CalendarIcon, emoji: '📅' },
+    { id: 'notice-board' as ActiveTab, label: 'Notice Board', icon: Bell, emoji: '📢' },
     { id: 'my-bookings' as ActiveTab, label: 'My Bookings', icon: BookOpen, emoji: '📋' },
     { id: 'profile' as ActiveTab, label: 'My Profile', icon: UserIcon, emoji: '👤' },
   ];
@@ -59,23 +62,13 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
           <div>
             <h1 className="text-base font-bold text-[#1E2621] tracking-tight leading-none font-temple">
-              {branding.templeName || 'Temple Of Fine Arts'}
+              {branding.templeName || 'Temple Of Fine Arts Penang'}
             </h1>
             <p className="text-[11px] text-[#5D6B62] font-medium">{branding.tagline || 'Deity & Prayer Seva'}</p>
           </div>
         </div>
 
         <div className="flex items-center space-x-2">
-          {currentUser && (
-            <div 
-              onClick={() => setActiveTab('profile')}
-              className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#EBF3ED] border border-[#D2DFD5] text-xs font-semibold text-[#1E5E3A] cursor-pointer"
-            >
-              <span className="w-2 h-2 rounded-full bg-[#1E5E3A]"></span>
-              <span className="max-w-[90px] truncate">{currentUser.fullName.split(' ')[0]}</span>
-            </div>
-          )}
-          
           {isAdmin && (
             <button
               onClick={() => setActiveTab('admin')}
@@ -111,7 +104,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   <BrandLogo branding={branding} imgClassName="w-full h-full object-contain" emojiClassName="text-base" />
                 </span>
                 <div>
-                  <h3 className="font-bold text-[#1E2621] font-temple leading-tight">{branding.templeName || 'Temple Of Fine Arts'}</h3>
+                  <h3 className="font-bold text-[#1E2621] font-temple leading-tight">{branding.templeName || 'Temple Of Fine Arts Penang'}</h3>
                   
                 </div>
               </div>
@@ -122,6 +115,33 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Current user card in mobile drawer */}
+            {currentUser && (
+              <div 
+                onClick={() => {
+                  setActiveTab('profile');
+                  setMobileMenuOpen(false);
+                }}
+                className="mb-3 p-3 rounded-2xl bg-[#FAFAF7] border border-[#E0E5DF] flex items-center justify-between cursor-pointer hover:bg-[#EBF3ED] transition-colors"
+              >
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <DevoteeAvatar
+                    avatarUrl={currentUser.avatarUrl}
+                    name={currentUser.fullName}
+                    size="sm"
+                    showRing
+                  />
+                  <div className="truncate">
+                    <p className="text-xs font-bold text-[#1E2621] truncate">{currentUser.fullName}</p>
+                    <p className="text-[10px] text-[#5D6B62]">📱 {currentUser.mobilePhone}</p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-[#1E5E3A] font-bold uppercase tracking-wider">
+                  Profile
+                </span>
+              </div>
+            )}
 
             <nav className="space-y-1">
               {navItems.map(item => {
@@ -199,37 +219,11 @@ export const Navigation: React.FC<NavigationProps> = ({
             </div>
             <div className="min-w-0">
               <h1 className="text-base font-bold text-[#1E2621] tracking-tight font-temple leading-snug truncate">
-                {branding.templeName || 'Temple Of Fine Arts'}
+                {branding.templeName || 'Temple Of Fine Arts Penang'}
               </h1>
               <p className="text-xs text-[#5D6B62] font-medium truncate">{branding.tagline || 'Deity & Prayer Seva'}</p>
             </div>
           </div>
-
-          {/* User Profile Card Snippet */}
-          {currentUser && (
-            <div className="mt-4 p-3 rounded-xl bg-[#FAFAF7] border border-[#E0E5DF]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 min-w-0">
-                  <div className="w-7 h-7 rounded-full bg-[#EBF3ED] text-[#1E5E3A] flex items-center justify-center font-bold text-xs shrink-0">
-                    {currentUser.fullName.charAt(0)}
-                  </div>
-                  <div className="truncate">
-                    <p className="text-xs font-bold text-[#1E2621] truncate">{currentUser.fullName}</p>
-                    <p className="text-[11px] text-[#5D6B62] truncate">📱 {currentUser.mobilePhone}</p>
-                  </div>
-                </div>
-                {currentUser.role === 'admin' ? (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-[#EBF3ED] text-[#1E5E3A] border border-[#D2DFD5]">
-                    Admin
-                  </span>
-                ) : currentUser.status === 'pending' ? (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-[#FEF3C7] text-[#D97736]">
-                    Pending
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Navigation Items */}
@@ -257,33 +251,38 @@ export const Navigation: React.FC<NavigationProps> = ({
             );
           })}
 
-          {/* Admin Section */}
-          <div className="pt-5 mt-4 border-t border-[#E0E5DF]">
-            <div className="px-3 pb-2 flex items-center justify-between">
-              <p className="text-[10px] font-bold text-[#8A968D] uppercase tracking-widest">
-                Temple Committee
-              </p>
-            </div>
-            <button
-              id="nav-item-admin"
-              onClick={() => setActiveTab('admin')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left text-sm font-semibold transition-all duration-150 cursor-pointer ${
-                activeTab === 'admin'
-                  ? 'bg-[#1E5E3A] text-white shadow-xs'
-                  : 'text-[#5D6B62] hover:bg-[#F4F7F4] hover:text-[#1E2621]'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <span className="text-base">⚙️</span>
-                <span>Administration</span>
-              </div>
-              {pendingUsersCount > 0 && (
-                <span className="bg-[#D97736] text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                  {pendingUsersCount}
+          {/* Admin Section (Restricted strictly to administrators) */}
+          {isAdmin && (
+            <div className="pt-5 mt-4 border-t border-[#E0E5DF]">
+              <div className="px-3 pb-2 flex items-center justify-between">
+                <p className="text-[10px] font-bold text-[#8A968D] uppercase tracking-widest">
+                  Temple Committee
+                </p>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase bg-[#1E5E3A] text-white">
+                  Admin Only
                 </span>
-              )}
-            </button>
-          </div>
+              </div>
+              <button
+                id="nav-item-admin"
+                onClick={() => setActiveTab('admin')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left text-sm font-semibold transition-all duration-150 cursor-pointer ${
+                  activeTab === 'admin'
+                    ? 'bg-[#1E5E3A] text-white shadow-xs'
+                    : 'text-[#5D6B62] hover:bg-[#F4F7F4] hover:text-[#1E2621]'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <span className="text-base">⚙️</span>
+                  <span>Administration</span>
+                </div>
+                {pendingUsersCount > 0 && (
+                  <span className="bg-[#D97736] text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                    {pendingUsersCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
         </nav>
 
         {/* Footer info & Logout */}
