@@ -10,8 +10,8 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const branding = storage.getTempleBranding();
-  const [mobilePhone, setMobilePhone] = useState('0162216904'); // Official Admin account
-  const [password, setPassword] = useState('Anni1234$$');
+  const [mobilePhone, setMobilePhone] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [showRegister, setShowRegister] = useState(false);
   const [forgotPasswordNotice, setForgotPasswordNotice] = useState(false);
@@ -70,15 +70,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const setQuickUser = (phone: string, pwd: string = 'Anni1234$$') => {
-    setMobilePhone(phone);
-    setPassword(pwd);
-    setErrorMessage('');
-    const result = storage.loginWithPhone(phone, pwd);
-    if (result.success && result.user) {
-      onLoginSuccess(result.user);
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] flex flex-col justify-center items-center px-4 py-8 sm:px-6 lg:px-8 relative overflow-hidden">
@@ -318,25 +310,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </form>
           )}
 
-          {/* Quick Admin Sign-In */}
-          <div className="mt-6 pt-4 border-t border-[#E0E5DF]">
-            <p className="text-[11px] font-bold text-[#5D6B62] uppercase tracking-wider mb-2 text-center">
-              Administrator Access
-            </p>
-            <button
-              type="button"
-              onClick={() => setQuickUser('0162216904', 'Anni1234$$')}
-              className="w-full p-2.5 rounded-xl bg-[#FEF3EB] hover:bg-[#FEE2C7] border border-[#FDCBAA] flex items-center justify-between transition-colors cursor-pointer"
-            >
-              <div>
-                <div className="font-bold text-[#D97736] text-xs">⚙️ Temple Administrator (Admin)</div>
-                <div className="text-[10px] text-[#8F4F19]">📱 0162216904 &bull; Password: Anni1234$$</div>
-              </div>
-              <span className="text-xs font-semibold text-[#D97736] bg-white/80 px-2 py-1 rounded-lg border border-[#FDCBAA]">
-                1-Click Sign In
-              </span>
-            </button>
-          </div>
         </div>
 
         {/* Footer info */}
