@@ -1657,7 +1657,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <input
                   type="tel"
                   required
-                  placeholder="e.g. 0162216904 or 0123456789"
+                  placeholder="e.g. 01609042026 or 01609042026"
                   value={adminPhone}
                   onChange={(e) => setAdminPhone(e.target.value)}
                   className="w-full text-xs bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl p-2.5 text-[#1E2621] font-medium"

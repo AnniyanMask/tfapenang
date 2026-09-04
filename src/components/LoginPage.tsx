@@ -130,7 +130,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     required
                     value={mobilePhone}
                     onChange={(e) => setMobilePhone(e.target.value)}
-                    placeholder="e.g. 0162216904"
+                    placeholder="e.g. 01609042026"
                     className="w-full pl-10 pr-4 py-2.5 bg-[#FAFAF7] border border-[#E0E5DF] rounded-xl text-[#1E2621] text-sm focus:outline-none focus:ring-2 focus:ring-[#1E5E3A] focus:bg-white transition-all"
                   />
                 </div>
