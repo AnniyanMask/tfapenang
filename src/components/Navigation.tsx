@@ -64,7 +64,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             <h1 className="text-base font-bold text-[#1E2621] tracking-tight leading-none font-temple">
               {branding.templeName || 'Temple Of Fine Arts Penang'}
             </h1>
-            <p className="text-[11px] text-[#5D6B62] font-medium">{branding.tagline || 'Deity & Prayer Seva'}</p>
+           
           </div>
         </div>
 
@@ -221,7 +221,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               <h1 className="text-base font-bold text-[#1E2621] tracking-tight font-temple leading-snug truncate">
                 {branding.templeName || 'Temple Of Fine Arts Penang'}
               </h1>
-              <p className="text-xs text-[#5D6B62] font-medium truncate">{branding.tagline || 'Deity & Prayer Seva'}</p>
+              <p className="text-xs text-[#5D6B62] font-medium truncate">{branding.tagline || ''}</p>
             </div>
           </div>
         </div>
@@ -290,7 +290,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5 text-xs text-[#8A968D]">
               <Sparkles className="w-3.5 h-3.5 text-[#1E5E3A]" />
-              <span className="text-[10px] uppercase font-bold tracking-wider">Shiva Family Year 2026</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider">Penang Shiva Family</span>
             </div>
             <button
               onClick={onLogout}

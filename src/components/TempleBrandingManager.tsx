@@ -45,7 +45,7 @@ export const TempleBrandingManager: React.FC<TempleBrandingManagerProps> = ({ on
   const [imageUrl, setImageUrl] = useState<string>(current.type === 'image' ? current.value : '/images/temple-logo.png');
   const [emojiVal, setEmojiVal] = useState<string>(current.type === 'emoji' ? current.value : '🕉️');
   const [templeName, setTempleName] = useState<string>(current.templeName || 'Temple Of Fine Arts Penang');
-  const [tagline, setTagline] = useState<string>(current.tagline || 'Deity & Sunday Prayer Seva');
+  const [tagline, setTagline] = useState<string>(current.tagline || '');
 
   const [isDragging, setIsDragging] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);

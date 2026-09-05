@@ -1,4 +1,5 @@
-import { Announcement, Deity, DeityBooking, PrayerHosting, TempleBranding, User } from '../types';
+import {Announcement, Deity, DeityBooking, PrayerHosting, TempleBranding, User} from '../types';
+import {loginWithSupabase,registerUserInSupabase} from './supabaseDb';
 import { INITIAL_BOOKINGS, INITIAL_DEITIES, INITIAL_PRAYER_HOSTINGS, INITIAL_USERS } from '../data/initialData';
 import { INITIAL_ANNOUNCEMENTS } from '../data/initialAnnouncements';
 
@@ -18,7 +19,7 @@ export const DEFAULT_TEMPLE_BRANDING: TempleBranding = {
   type: 'image',
   value: '/images/temple-logo.png',
   templeName: 'Temple Of Fine Arts Penang',
-  tagline: 'Deity & Sunday Prayer Seva'
+  tagline: ''
 };
 
 export interface SupabaseConfig {
@@ -283,6 +284,146 @@ class StorageService {
     this.setCurrentUser(user);
     return { success: true, user };
   }
+ 
+  public async loginWithPhoneSupabase(
+    mobilePhone: string,
+    password: string
+  ): Promise<{
+    success: boolean;
+    user?: User;
+    error?: string;
+  }> {
+    try {
+      const result = await loginWithSupabase(
+        mobilePhone,
+        password
+      );
+
+      if (!result.success || !result.user) {
+        return {
+          success: false,
+          error:
+            result.error ||
+            'Invalid mobile phone number or password.'
+        };
+      }
+
+      /*
+       * Keep the existing application's current-user
+       * mechanism working.
+       */
+      this.setCurrentUser(result.user);
+
+      /*
+       * Synchronize the local user cache with the
+       * authenticated Supabase profile.
+       */
+      const users = this.getUsers();
+
+      const existingIndex = users.findIndex(
+        u => u.id === result.user!.id
+      );
+
+      if (existingIndex >= 0) {
+        users[existingIndex] = result.user;
+      } else {
+        users.unshift(result.user);
+      }
+
+      localStorage.setItem(
+        STORAGE_KEYS.USERS,
+        JSON.stringify(users)
+      );
+
+      this.notify();
+
+      return {
+        success: true,
+        user: result.user
+      };
+    } catch (error: any) {
+      console.error(
+        '[Storage] Supabase login failed:',
+        error
+      );
+
+      return {
+        success: false,
+        error:
+          error?.message ||
+          'Unable to connect to the TFA Account.'
+      };
+    }
+  }
+
+  public async registerUserSupabase(params: {
+    fullName: string;
+    mobilePhone: string;
+    password?: string;
+    address?: string;
+    email?: string;
+  }): Promise<{
+    success: boolean;
+    user?: User;
+    error?: string;
+  }> {
+    try {
+      const result = await registerUserInSupabase(params);
+
+      if (!result.success || !result.user) {
+        return {
+          success: false,
+          error:
+            result.error ||
+            'Unable to create member account.'
+        };
+      }
+
+      /*
+       * Add the profile to the local cache so existing
+       * admin/user screens can continue to see it.
+       *
+       * IMPORTANT:
+       * We intentionally do NOT call setCurrentUser().
+       * The newly registered user must remain pending.
+       */
+      const users = this.getUsers();
+
+      const existingIndex = users.findIndex(
+        u => u.id === result.user!.id
+      );
+
+      if (existingIndex >= 0) {
+        users[existingIndex] = result.user;
+      } else {
+        users.unshift(result.user);
+      }
+
+      localStorage.setItem(
+        STORAGE_KEYS.USERS,
+        JSON.stringify(users)
+      );
+
+      this.notify();
+
+      return {
+        success: true,
+        user: result.user
+      };
+    } catch (error: any) {
+      console.error(
+        '[Storage] Supabase registration failed:',
+        error
+      );
+
+      return {
+        success: false,
+        error:
+          error?.message ||
+          'Unable to connect to the TFA Account.'
+      };
+    }
+}
 
   public registerUser(params: {
     fullName: string;

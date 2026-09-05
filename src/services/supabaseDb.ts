@@ -9,15 +9,42 @@ export function mapProfileToUser(row: any): User {
     id: String(row.id),
     mobilePhone: String(row.mobile_phone || '').trim(),
     fullName: String(row.full_name || '').trim(),
-    email: row.email ? String(row.email).trim() : undefined,
-    password: row.password_hash ? String(row.password_hash) : undefined,
-    role: (row.role === 'admin' ? 'admin' : 'user'),
-    status: (row.status === 'approved' || row.status === 'rejected' ? row.status : 'pending'),
-    address: row.address ? String(row.address).trim() : '',
-    avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
-    createdAt: row.created_at 
-      ? new Date(row.created_at).toISOString().split('T')[0] 
-      : new Date().toISOString().split('T')[0]
+    email: row.email
+      ? String(row.email).trim()
+      : undefined,
+
+    /*
+     * Never put password_hash into the frontend User object.
+     */
+    role:
+      row.role === 'admin'
+        ? 'admin'
+        : 'user',
+
+    status:
+      row.status === 'approved' ||
+      row.status === 'rejected'
+        ? row.status
+        : 'pending',
+
+    address:
+      row.address
+        ? String(row.address).trim()
+        : '',
+
+    avatarUrl:
+      row.avatar_url
+        ? String(row.avatar_url)
+        : undefined,
+
+    createdAt:
+      row.created_at
+        ? new Date(row.created_at)
+            .toISOString()
+            .split('T')[0]
+        : new Date()
+            .toISOString()
+            .split('T')[0]
   };
 }
 
@@ -97,9 +124,9 @@ export async function fetchProfilesFromSupabase(): Promise<User[]> {
   if (!client) return [];
 
   const { data, error } = await client
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false });
+  .from('profiles')
+  .select(`id, mobile_phone, full_name, email, role, status, address, avatar_url, created_at, updated_at`)
+  .order('created_at', { ascending: false });
 
   if (error) {
     console.error('[Supabase] Failed to fetch profiles:', error);
@@ -115,73 +142,76 @@ export async function fetchProfilesFromSupabase(): Promise<User[]> {
  * Strictly no mock data fallback.
  */
 export async function loginWithSupabase(
-  mobilePhone: string, 
-  password?: string
-): Promise<{ success: boolean; user?: User; error?: string }> {
+  mobilePhone: string,
+  password: string
+): Promise<{ success: boolean; user?: User; error?: string; }> {
   const client = getSupabase();
   if (!client) {
-    return {
-      success: false,
-      error: 'Supabase database is not connected. Please ensure VITE_SUPABASE_URL is configured.'
+    return { 
+      success: false, 
+      error: 'Error contact your TFA Admin.' 
     };
   }
 
   const cleanPhone = normalizeDigits(mobilePhone);
-  if (cleanPhone.length < 6) {
+  if (cleanPhone.length < 7) {
     return { success: false, error: 'Please enter a valid mobile phone number.' };
   }
 
-  // Query profiles where mobile_phone contains or matches
-  const { data, error } = await client
-    .from('profiles')
-    .select('*');
-
-  if (error) {
-    return { success: false, error: `Database error during login: ${error.message}` };
+  if (!password || !password.trim()) {
+    return { success: false, error: 'Please enter your password.' };
   }
 
-  const userRow = (data || []).find(row => {
-    const rowPhone = normalizeDigits(String(row.mobile_phone || ''));
-    return rowPhone === cleanPhone || (cleanPhone.length >= 7 && rowPhone.endsWith(cleanPhone));
-  });
+  try {
+    const { data, error } = await client.rpc(
+      'authenticate_profile',
+      { p_mobile_phone: cleanPhone, p_password: password.trim() }
+    );
 
-  if (!userRow) {
-    return {
-      success: false,
-      error: 'Mobile phone number not found in temple database. Please register as a new member first.'
-    };
-  }
-
-  const user = mapProfileToUser(userRow);
-
-  // Validate password against database
-  if (password && userRow.password_hash) {
-    const rawStored = String(userRow.password_hash).trim();
-    // Support plain text match or direct match
-    if (rawStored !== password.trim() && !rawStored.startsWith('$2')) {
-      return { success: false, error: 'Incorrect password. Please verify and try again.' };
+    if (error) {
+      console.error('[Supabase] Authentication RPC error:', error);
+      return { success: false, error: `Login failed: ${error.message}` };
     }
-  }
 
-  return { success: true, user };
+    if (!data || data.length === 0) {
+      return { success: false, error: 'Invalid mobile phone number or password.' };
+    }
+
+    const userRow = data[0];
+    const user = mapProfileToUser(userRow);
+
+    // Validate password against database (if applicable via your local flow)
+    if (password && userRow.password_hash) {
+      const rawStored = String(userRow.password_hash).trim();
+      // Support plain text match or direct match
+      if (rawStored !== password.trim() && !rawStored.startsWith('$2')) {
+        return { success: false, error: 'Incorrect password. Please verify and try again.' };
+      }
+    }
+
+    return { success: true, user };
+  } catch (error: any) {
+    console.error('[Supabase] Authentication error:', error);
+    return { success: false, error: error?.message || 'Unable to authenticate.' };
+  }
 }
 
 /**
  * Register a new devotee user directly into Supabase public.profiles table.
  * Account starts with status 'pending' awaiting temple administrator validation.
  */
-export async function registerUserInSupabase(params: {
-  fullName: string;
-  mobilePhone: string;
-  password?: string;
-  address?: string;
-  email?: string;
-}): Promise<{ success: boolean; user?: User; error?: string }> {
+export async function registerUserInSupabase(params: { 
+  fullName: string; 
+  mobilePhone: string; 
+  password?: string; 
+  address?: string; 
+  email?: string; 
+}): Promise<{ success: boolean; user?: User; error?: string; }> {
   const client = getSupabase();
   if (!client) {
-    return {
-      success: false,
-      error: 'Supabase database is not connected. Please ensure VITE_SUPABASE_URL is configured.'
+    return { 
+      success: false, 
+      error: 'Error contact your TFA Admin.' 
     };
   }
 
@@ -191,52 +221,45 @@ export async function registerUserInSupabase(params: {
     return { success: false, error: 'Please enter a valid mobile phone number (min 7 digits).' };
   }
 
-  // Check if user already exists
-  const { data: existingRows } = await client
-    .from('profiles')
-    .select('id, mobile_phone');
-
-  const duplicate = (existingRows || []).some(
-    r => normalizeDigits(String(r.mobile_phone || '')) === digits
-  );
-
-  if (duplicate) {
-    return {
-      success: false,
-      error: 'A devotee is already registered with this mobile phone number in the temple database.'
-    };
+  if (!params.password || !params.password.trim()) {
+    return { success: false, error: 'Please enter a password.' };
   }
 
-  const newId = crypto.randomUUID ? crypto.randomUUID() : `usr_${Date.now()}`;
-  const insertPayload = {
-    id: newId,
-    mobile_phone: cleanPhone,
-    full_name: params.fullName.trim(),
-    email: params.email?.trim() || null,
-    password_hash: params.password?.trim() || 'Anni1234$$',
-    role: 'user',
-    status: 'pending', // Strictly pending until approved by temple admin
-    address: params.address?.trim() || null,
-    avatar_url: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
+  try {
+    const { data, error } = await client.rpc(
+      'register_profile',
+      {
+        p_mobile_phone: cleanPhone,
+        p_full_name: params.fullName.trim(),
+        p_password: params.password.trim(),
+        p_email: params.email?.trim() || null,
+        p_address: params.address?.trim() || null
+      }
+    );
 
-  const { data, error } = await client
-    .from('profiles')
-    .insert([insertPayload])
-    .select()
-    .single();
+    if (error) {
+      console.error('[Supabase] Registration RPC error:', error);
+      return { success: false, error: `Failed to create member account: ${error.message}` };
+    }
 
-  if (error) {
-    return { success: false, error: `Failed to create member account in Supabase: ${error.message}` };
+    if (!data || data.length === 0) {
+      return { success: false, error: 'Unable to create the member account.' };
+    }
+
+    // Map and return the successfully created user data
+    const userRow = data[0];
+    const user = mapProfileToUser(userRow);
+
+    return { success: true, user };
+  } catch (error: any) {
+    console.error('[Supabase] Registration system error:', error);
+    return { success: false, error: error?.message || 'Unable to create member account.' };
   }
-
-  return { success: true, user: mapProfileToUser(data) };
 }
 
 /**
- * Validate or update user status in Supabase public.profiles (e.g. approve, reject, promote to admin)
+ * Validate or update user status in Supabase public.profiles
+ * (e.g. approve, reject, promote to admin)
  */
 export async function updateUserStatusInSupabase(
   userId: string,
@@ -245,13 +268,14 @@ export async function updateUserStatusInSupabase(
 ): Promise<{ success: boolean; error?: string }> {
   const client = getSupabase();
   if (!client) {
-    return { success: false, error: 'Supabase database not connected.' };
+    return { success: false, error: 'Database not connected.' };
   }
 
-  const updatePayload: Record<string, any> = {
-    status,
-    updated_at: new Date().toISOString()
+  const updatePayload: Record<string, any> = { 
+    status, 
+    updated_at: new Date().toISOString() 
   };
+
   if (role) {
     updatePayload.role = role;
   }
@@ -268,6 +292,7 @@ export async function updateUserStatusInSupabase(
   return { success: true };
 }
 
+
 /**
  * Create administrator account directly in Supabase public.profiles
  */
@@ -281,7 +306,7 @@ export async function createAdminInSupabase(params: {
 }): Promise<{ success: boolean; user?: User; error?: string }> {
   const client = getSupabase();
   if (!client) {
-    return { success: false, error: 'Supabase database not connected.' };
+    return { success: false, error: 'Database not connected.' };
   }
 
   const cleanPhone = params.mobilePhone.trim();
@@ -342,7 +367,7 @@ export async function createDeityBookingInSupabase(
 ): Promise<{ success: boolean; booking?: DeityBooking; error?: string }> {
   const client = getSupabase();
   if (!client) {
-    return { success: false, error: 'Supabase database not connected.' };
+    return { success: false, error: 'Database not connected.' };
   }
 
   const newId = crypto.randomUUID ? crypto.randomUUID() : `bk_${Date.now()}`;

@@ -54,60 +54,43 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               Account Registered — Awaiting Admin Validation
             </h3>
             <p className="text-xs text-[#8F4F19]/90 mt-1 leading-relaxed">
-              Welcome, {currentUser.fullName}! Your mobile number (<span className="font-semibold">{currentUser.mobilePhone}</span>) has been submitted for validation by the Temple Committee. You can explore available dates; once approved, your reservations will be finalized.
+              Welcome, {currentUser.fullName}! Your mobile number (<span className="font-semibold">{currentUser.mobilePhone}</span>) has been submitted for validation by the TFA Admin. You can explore available dates; once approved, your reservations will be finalized.
             </p>
           </div>
         </div>
       )}
 
       {/* Top Welcome Section */}
-      <div className="bg-[#1E5E3A] rounded-3xl p-6 sm:p-8 text-white shadow-xs relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start space-x-4">
-            <button
-              onClick={() => onNavigate('profile')}
-              className="shrink-0 relative group focus:outline-none cursor-pointer"
-              title="Update profile picture"
-            >
-              <DevoteeAvatar
-                avatarUrl={currentUser.avatarUrl}
-                name={currentUser.fullName}
-                size="lg"
-                showRing
-                ringColor="ring-white/50"
-              />
-              <span className="absolute -bottom-1 -right-1 bg-white text-[#1E5E3A] text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-xs opacity-90 group-hover:opacity-100 transition-opacity">
-                Edit
-              </span>
-            </button>
-            <div>
-              <div className="flex items-center gap-2 text-emerald-100 text-xs font-semibold tracking-wider uppercase mb-1">
-                <Sparkles className="w-4 h-4 text-emerald-200" />
-                <span>Shiva Family Portal</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold font-temple tracking-tight">
-                Welcome, {currentUser.fullName}
-              </h1>
-              <p className="text-emerald-100/90 text-xs sm:text-sm mt-1 max-w-xl leading-relaxed">
-                Reserve a sacred deity to grace your home for an auspicious Sunday-to-Sunday week, or volunteer to host Sunday community prayers.
-              </p>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs font-medium text-white">
-                  📱 {currentUser.mobilePhone}
-                </span>
-                <button
-                  onClick={() => onNavigate('profile')}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-xs font-semibold text-white transition-colors cursor-pointer"
-                >
-                  <span>📷 Update Profile Picture</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+<div className="bg-[#1E5E3A] rounded-3xl p-6 sm:p-8 text-white shadow-xs relative overflow-hidden">
+  <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="flex items-start space-x-4">
+      <div className="shrink-0 relative">
+        <DevoteeAvatar
+          avatarUrl={currentUser.avatarUrl}
+          name={currentUser.fullName}
+          size="lg"
+          showRing
+          ringColor="ring-white/50"
+        />
       </div>
+      <div>
+        <div className="flex items-center gap-2 text-emerald-100 text-xs font-semibold tracking-wider uppercase mb-1">
+          <Sparkles className="w-4 h-4 text-emerald-200" />
+          <span>Shiva Family Portal</span>
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold font-temple tracking-tight">
+          Welcome, {currentUser.fullName}
+        </h1>
+        <p className="text-emerald-100/90 text-xs sm:text-sm mt-1 max-w-xl leading-relaxed">
+          Reserve a sacred deity to grace your home for an auspicious Sunday-to-Sunday week, or volunteer to host Sunday community prayers.
+        </p>
+
+        {/* Removed the entire mt-4 badge container since both mobile and photo update are gone */}
+      </div>
+    </div>
+  </div>
+</div>
 
       {/* Temple Notice Board & Circulars Highlight */}
       {highlightedNotices.length > 0 && (
@@ -175,66 +158,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         </div>
       )}
 
-      {/* Two Large Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Action Card 1: Book a Deity */}
-        <div className="bg-[#FAF8F5] rounded-2xl border border-[#E0E5DF] p-6 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between group relative overflow-hidden">
-          <div className="text-9xl absolute -right-10 -top-10 opacity-5 pointer-events-none select-none">
-            🛕
-          </div>
-          <div className="relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-[#EBF3ED] text-[#1E5E3A] flex items-center justify-center text-2xl mb-4 group-hover:scale-105 transition-transform shadow-xs">
-              🛕
-            </div>
-            <h2 className="text-xl font-bold text-[#1E2621] font-temple">
-              Book a Deity
-            </h2>
-            <p className="text-[#5D6B62] text-sm mt-2 leading-relaxed">
-              Reserve a deity for one Sunday-to-Sunday week. Welcome the divine presence into your home altar.
-            </p>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-[#E0E5DF] relative z-10">
-            <button
-              id="btn-dashboard-book-deity"
-              onClick={() => onNavigate('deity-booking')}
-              className="w-full py-3 px-4 bg-[#1E5E3A] hover:bg-[#164E30] text-white font-bold rounded-xl text-sm shadow-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
-            >
-              <span>BOOK DEITY</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Action Card 2: Host Sunday Prayers */}
-        <div className="bg-[#FAF8F5] rounded-2xl border border-[#E0E5DF] p-6 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between group relative overflow-hidden">
-          <div className="text-9xl absolute -right-10 -top-10 opacity-5 pointer-events-none select-none">
-            🙏
-          </div>
-          <div className="relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-[#FEF3EB] text-[#D97736] flex items-center justify-center text-2xl mb-4 group-hover:scale-105 transition-transform shadow-xs">
-              🙏
-            </div>
-            <h2 className="text-xl font-bold text-[#1E2621] font-temple">
-              Host Sunday Prayers
-            </h2>
-            <p className="text-[#5D6B62] text-sm mt-2 leading-relaxed">
-              Choose an available Sunday to host the prayers. Sponsor the bhajans, satsang, and community prasadam seva.
-            </p>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-[#E0E5DF] relative z-10">
-            <button
-              id="btn-dashboard-book-prayer"
-              onClick={() => onNavigate('prayer-hosting')}
-              className="w-full py-3 px-4 bg-[#D97736] hover:bg-[#B85E22] text-white font-bold rounded-xl text-sm shadow-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
-            >
-              <span>BOOK PRAYER DATE</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+      
 
       {/* 5. UPCOMING BOOKINGS SECTION */}
       <div className="space-y-4">
@@ -419,10 +343,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               Sacred Tradition &amp; Deity Protocol
             </h4>
             <p>
-              • Deities are collected each Sunday following the main sanctum prayer (approx. 12:30 PM).
+              • Deities are collected each Sunday after prayers.
             </p>
             <p>
-              • Please return the deity on the concluding Sunday before 5:00 AM so the sanctum can prepare for the incoming family.
+              • Please return the deity on the concluding Sunday before 5:45 AM.
             </p>
             <p>
               • Maintain a serene and satvic environment in your home altar throughout the holy week.

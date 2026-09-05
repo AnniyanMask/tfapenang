@@ -15,6 +15,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showRegister, setShowRegister] = useState(false);
   const [forgotPasswordNotice, setForgotPasswordNotice] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Registration Form State
   const [regFullName, setRegFullName] = useState('');
@@ -23,37 +24,69 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [regPassword, setRegPassword] = useState('Anni1234$$');
   const [regSuccess, setRegSuccess] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
+  const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setErrorMessage('');
 
-    if (!mobilePhone.trim()) {
-      setErrorMessage('Please enter your registered Mobile Phone number.');
-      return;
-    }
+  if (!mobilePhone.trim()) {
+    setErrorMessage('Please enter your registered Mobile Phone number.');
+    return;
+  }
 
-    const result = storage.loginWithPhone(mobilePhone, password);
+  if (!password.trim()) {
+    setErrorMessage('Please enter your password.');
+    return;
+  }
+
+  setIsLoggingIn(true);
+
+  try {
+    const result = await storage.loginWithPhoneSupabase(
+      mobilePhone,
+      password
+    );
+
     if (result.success && result.user) {
       onLoginSuccess(result.user);
     } else {
-      setErrorMessage(result.error || 'Invalid Mobile Phone number or password.');
+      setErrorMessage(
+        result.error || 'Invalid Mobile Phone number or password.'
+      );
     }
+  } catch (error: any) {
+    console.error('[Login] Unexpected login error:', error);
+
+    setErrorMessage(
+      error?.message ||
+      'Unable to connect to the temple database.'
+    );
+  } finally {
+    setIsLoggingIn(false);
+  }
+
   };
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
+  const handleRegister = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setErrorMessage('');
 
-    if (!regFullName.trim()) {
-      setErrorMessage('Please enter your full name.');
-      return;
-    }
-    if (!regMobilePhone.trim()) {
-      setErrorMessage('Please enter your mobile phone number.');
-      return;
-    }
+  if (!regFullName.trim()) {
+    setErrorMessage('Please enter your full name.');
+    return;
+  }
 
-    const result = storage.registerUser({
+  if (!regMobilePhone.trim()) {
+    setErrorMessage('Please enter your mobile phone number.');
+    return;
+  }
+
+  if (!regPassword.trim()) {
+    setErrorMessage('Please enter a password.');
+    return;
+  }
+
+  try {
+    const result = await storage.registerUserSupabase({
       fullName: regFullName,
       mobilePhone: regMobilePhone,
       password: regPassword,
@@ -62,13 +95,36 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
     if (result.success && result.user) {
       setRegSuccess(true);
+
+      /*
+       * IMPORTANT:
+       * Do not automatically log the new member in.
+       * The account must remain pending until approved by admin.
+       */
       setTimeout(() => {
-        onLoginSuccess(result.user!);
-      }, 1400);
+        setShowRegister(false);
+        setRegSuccess(false);
+
+        setRegFullName('');
+        setRegMobilePhone('');
+        setRegAddress('');
+        setRegPassword('');
+        setErrorMessage('');
+      }, 1800);
     } else {
-      setErrorMessage(result.error || 'Failed to create account.');
+      setErrorMessage(
+        result.error || 'Failed to create account.'
+      );
     }
-  };
+  } catch (error: any) {
+    console.error('[Registration] Error:', error);
+
+    setErrorMessage(
+      error?.message ||
+      'Unable to connect to the TFA Account.'
+    );
+  }
+};
 
 
 
@@ -91,7 +147,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             {branding.tagline || 'Deity & Sunday Prayer Booking System'}
           </p>
           <div className="mt-3 inline-block px-4 py-1.5 rounded-full bg-[#EBF3ED] border border-[#CDE0D4] text-xs text-[#1E5E3A] font-medium">
-            &quot;Sign in and get blessed by Swami Shantanand Saraswathi.&quot;
+            &quot;Sign in and receive blessings by Swami Shantanand Saraswathi.&quot;
           </div>
         </div>
 
@@ -185,12 +241,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
               {/* Login Button */}
               <button
-                type="submit"
-                id="btn-login-submit"
+               type="submit"
+               id="btn-login-submit"
+                disabled={isLoggingIn}
                 className="w-full mt-2 py-3 px-4 bg-[#1E5E3A] hover:bg-[#164E30] text-white font-bold rounded-xl shadow-xs text-sm flex items-center justify-center space-x-2 transition-all cursor-pointer"
               >
-                <span>LOGIN</span>
-                <ArrowRight className="w-4 h-4" />
+               {isLoggingIn ? (
+  <>
+    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+    <span>CHECKING...</span>
+  </>
+) : (
+  <>
+    <span>LOGIN</span>
+    <ArrowRight className="w-4 h-4" />
+  </>
+)}
               </button>
 
               <div className="text-center pt-2">
